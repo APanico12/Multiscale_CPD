@@ -45,6 +45,7 @@ i <-1
       
     #filter out 
     }
+    X <- 1 
     
     
     
