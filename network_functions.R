@@ -1,4 +1,5 @@
 # Here are the function to compute EDC and Dn 
+#Antonio
 
 # Extreme Downside Correlation
 EDC <- function(X, tau = 0.10) {
