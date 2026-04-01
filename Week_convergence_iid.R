@@ -86,11 +86,11 @@ for (i in seq_along(n)) {
   
   qqplot(theoretical_quantiles, sorted_results[, i],
          main = sprintf("Q-Q Plot: n = %d", n[i]),
-         xlab = "Theoretical Kolmogorov Quantiles",
+         xlab = "Sample Data",
          ylab = "Empirical Quantiles",
          pch  = 19, col = "darkblue")
  
-  abline(fit, col = "green", lwd = 2, lty = 2)       # regression line
+  abline(fit, col = "green", lwd = 2, lty = 2)  # regression line
 }
 
  
