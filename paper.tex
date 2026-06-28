@@ -1,0 +1,469 @@
+\documentclass[12pt,a4paper]{article}
+
+% Fundamentals & Fonts
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage[a4paper,margin=2.5cm]{geometry}
+
+% Math & Logic
+\usepackage{amsmath, amssymb}
+\usepackage{amsthm} 
+
+% Define the "Assumption" environment
+\theoremstyle{assumption}
+\newtheorem{assumption}{Assumption}[section]
+\newtheorem{example}{Example}[section]
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}[section]
+\theoremstyle{theorem}
+\newtheorem{theorem}{Theorem}[section]
+% Graphics & TikZ
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{svg}
+\usepackage{tikz}
+\usepackage{pdfpages}
+\usepackage{wrapfig}
+
+% Professional Tables (Crucial for SI)
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{adjustbox}
+\usepackage{threeparttable} % From SI
+\usepackage{siunitx}        % From SI (For Table S7)
+\usepackage{lscape}
+
+% Layout & Formatting
+\usepackage{float}
+\usepackage{xcolor}
+\usepackage{soul}
+\usepackage{caption}
+\usepackage{authblk}
+
+% Bibliography & Citations
+\usepackage{natbib}
+
+% Links
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    citecolor=blue,
+    urlcolor=cyan
+}
+
+% --- MACROS ---
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\V}{\mathrm{Var}}
+\newcommand{\Cov}{\mathrm{Cov}}
+
+
+\title{\textbf{Functional change-point detection for extreme dependence structure with application to  European electricity market}}
+\author[]{}
+% \author[1]{Antonio Panico\thanks{Email: antonio.panico@unipr.it}}
+%\author[2]{Andrew Burlinson}
+%\author[1]{Luigi Grossi}
+
+% \affil[1]{Department of Engineering for Industrial Systems and Technologies, University of Parma, 43124 Parma, Italy}
+%\affil[2]{School of Economics, University of Sheffield, Sheffield, UK}
+%\email{Antonio.panico@unipr.it}
+
+\date{} % <-- niente data
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+
+\end{abstract}
+
+\section{Introduction}
+In recent years, the European electricity market has faced several challenges,
+particularly due to external shocks and evolving policy goals. Indeed, the wholesale electricity market has been characterized by extreme volatility during the period from 2020 to 2025, caused by both geopolitical events,
+most notably the Ukraine-Russia war and the resulting gas price crisis, and market-specific factors such as the COVID-19 pandemic.
+Previous research has focused on measuring extremal dependence \cite{Lindstrom2012} and utilizing network frameworks to analyze volatility spillovers and profitability linkages among energy markets \cite{Felix2025}.
+This study aims to provide a more comprehensive characterization of time-varying extremal dependence by developing a CUSUM test statistic for changes in Extreme Dependences.
+Interesting, our framework aligns with the literature of changes in extreme dependence, which is relevant for many applications, i.e., environments,  earth sciences, and finance. 
+ 
+An effective approach to monitoring the evolution of extremal dependence is the application of continuous time-varying models. Within this framework, \cite{Castro2018} developed a semi-parametric regression model to dynamically track these shifts, though their approach strictly assumes Asymptotic Dependence (AD). To overcome this limitation, \cite{Hoga2022} introduced a dynamic model that accommodates smooth, continuous transitions between regimes of Asymptotic Dependence and Asymptotic Independence (AI). Building upon these advancements, \cite{Gong2022} pushed the field further with a highly flexible, asymmetric copula model that not only bridges AD and AI, but uniquely captures the divergence between coordinated market crashes (lower tail) and independent rallies (upper tail).
+
+
+
+\section{Model}
+In this paper, we study a multivariate, locally stationary time series model given by the causal representation
+
+\begin{equation}
+    X_{t,n} = G_n\left(\frac{t}{n}, \varepsilon_t\right) \in \mathbb{R}^d, \quad t = 1, \dots, n
+    \label{eq: dgp}
+\end{equation} 
+where ${\varepsilon}_t = (\epsilon_t, \epsilon_{t-1}, \dots) \in \mathbb{R}^\infty$ for iid random variables $\epsilon_i$. For each $u \in [0, 1]$ and $n \in \mathbb{N}$, the sequence $(G_n(u, \varepsilon_t))_{t \in \mathbb{Z}}$ is stationary. By letting the kernel depend on the fraction $\frac{t}{n}$, the model explicitly accounts for nonstationarity.
+
+The functions $G_n$ are assumed to be measurable, where we endow the sequence space $\mathbb{R}^\infty$ with the projection $\sigma$-Algebra.
+
+\begin{assumption}[Limiting Kernel Convergence]
+We assume that the kernel $G_n$ tends towards a limiting kernel $G : \mathbb{R} \times \mathbb{R}^\infty \to \mathbb{R}^d$, in the sense that
+$$\sup_{u \in [0,1]} \left\| G_n(u, \varepsilon_0) - G(u, \varepsilon_0) \right\|_{L_q} \to 0, \quad n \to \infty \qquad (A.1)$$
+for some $q > 2$. Note that we do not require a rate of convergence in (A.1).
+\end{assumption}
+
+\begin{assumption}[Lipschitz Continuity]
+We require the function $u \mapsto G_n(u, \epsilon_0) \in L_q(P)$ to satisfy specific regularity conditions. There exists a constant $C > 0$ such that for all $u, v \in [0, 1]$ and all $n \in \mathbb{N}$:
+$$\sup_n \left\| G_n(u, \epsilon_0) - G_n(v, \epsilon_0) \right\|_{L_q} \le C |u - v|\qquad (A.2)$$
+\end{assumption}
+
+\begin{assumption}[Bounded dependence measure]
+ To define the dependence measure, we introduce an iid copy $\epsilon_i^*$ of the $\epsilon_i$. Denote for $t \in \mathbb{Z}, j \in \mathbb{Z}_{\ge 0}$,
+$$\varepsilon_{t,j}^* = (\epsilon_t, \dots, \epsilon_{t-j+1}, \epsilon_{t-j}^*, \epsilon_{t-j-1}^*, \dots) \in \mathbb{R}^\infty,$$
+$$\tilde{\varepsilon}_{t,j} = (\epsilon_t, \dots, \epsilon_{t-j+1}, \epsilon_{t-j}^*, \epsilon_{t-j-1}, \dots) \in \mathbb{R}^\infty.$$
+
+We assume that there exists a value $\rho \in (0, 1)$ such that, for all $j, n \in \mathbb{N}, u \in [0, 1]$
+$$\left\| G_n(u, \varepsilon_t) - G_n(u, \tilde{\varepsilon}_{t,j}) \right\|_{L_q} \le C_G \rho^j. \qquad (A.3)$$
+This implies that
+$$\left\| G_n(u, \varepsilon_t) - G_n(u, \varepsilon_{t,j}^*) \right\|_{L_q} \le \frac{C_G}{1 - \rho} \rho^j.$$
+\end{assumption}
+
+\begin{assumption}
+    The function $H:\R^d\times \R^p\to \R^p$, the parameter space $\Theta\subset\R^p$, and the class of distributions $\mathcal{P}$ satisfy:  
+    For any random vector $X\sim P\in\mathcal{P}$, there exists exactly one $\theta(P)\in\Theta$ such that $\E H(X,\theta(P))=0$.
+\end{assumption}
+
+With this definition, we can speak of the local parameter $\theta_{t,n}$ as the solution of the moment equation $\E H(X_{t,n},\theta_{t,n})=0$, that is, $\theta_{t,n}=\theta(P^X_{t,n})$.
+
+
+This formulation in terms of nonlinear moment equations is very general and encompasses various examples of interest, as shown below.
+\newpage
+\begin{example}[Variance]
+    First, we consider the variance $\sigma^2 = \mathrm{Var}(X)$. In this case, we also need the first moment $\mu = \E(X)$. 
+    We define the parameter vector $\theta \in \R^2$ as 
+    \begin{align*}
+        \theta = \begin{pmatrix}
+         \mu\\
+         \sigma^2
+    \end{pmatrix} \leftrightarrow 
+    \begin{pmatrix}
+            \E(X) \\ 
+            \mathrm{Var}(X)
+        \end{pmatrix}.
+    \end{align*}
+    Thus, $\theta$ is the solution of the estimating equation $\E H(X,\theta) = 0$, where 
+    \begin{align*}
+        H(X,\theta) &= \begin{pmatrix}
+            X-\mu\\
+            X^2 - \mu^2-\sigma^2
+        \end{pmatrix}.
+    \end{align*}
+\end{example}
+
+\begin{example}[Autocorrelation]
+    For a time series $Z_t$ not necessarily stationary but with $\E(Z_t^2) < \infty$ for all $t$, define $X_t=(Z_t,Z_{t-h})$, and consider the parameter vector $\theta \in \R^6$ and the corresponding estimating function $H(X,\theta)$ as 
+    \begin{align*}
+        \theta = \begin{pmatrix}
+            \mu_1 \\
+            \mu_2 \\
+            \mu_{1,2}\\
+            \sigma_1^2 \\
+            \sigma_2^2 \\
+            \rho_h   
+        \end{pmatrix} \leftrightarrow 
+        \begin{pmatrix}
+            \E(Z_t) \\
+            \E(Z_{t-h}) \\
+            \E(Z_t Z_{t-h})\\
+            \mathrm{Var}(Z_t) \\
+            \mathrm{Var}(Z_{t-h}) \\
+            \mathrm{Corr}(Z_t, Z_{t-h})
+        \end{pmatrix},
+        \qquad H(X_t,\theta) &= \begin{pmatrix}
+            Z_t - \mu_1 \\
+            Z_{t-h} - \mu_2 \\
+            Z_t Z_{t-h} - \mu_{1,2} \\
+            Z_t^2 - \mu_1^2 - \sigma_1^2 \\
+            Z_{t-h}^2 - \mu_2^2 - \sigma_2^2 \\
+            \mu_{1,2} - \mu_1\mu_2 - \rho_h\sigma_1\sigma_2
+        \end{pmatrix}.
+    \end{align*}
+    Then the autocovariance $\gamma(t,t-h)=\Cov(Z_t,Z_{t-h})$ may be identified as $\gamma(t,t-h)=\theta(X_t)_6$.
+\end{example}
+
+\begin{example}[Smoothed EDC density]
+    The smoothed extremal downside correlation (SEDC) matrix of a $d$-variate random vector $X$ is defined as 
+    
+    \begin{align*}
+        SEDC_{\tau,ij} &= \mathrm{Cor}(Y_i, Y_j), \\
+        \text{where}\qquad Y_i &= \frac{X_i-\mu_i}{\sigma_i} S_\gamma\left(\tau- \tfrac{X_i-\mu_i}{\sigma_i} \right),\quad
+        \mu_i=\E(X_i),\quad \sigma_i^2=\mathrm{Var}(X_i).
+    \end{align*}
+    Here, $S_\gamma(\cdot)$ is the continuously differentiable logistic function $S_\gamma(x) = 1/(1 + \exp(-x/\gamma))$
+    The parameter $\gamma > 0$ is a smoothing parameter, and $\gamma \rightarrow 0$, $S_\gamma(x)$ converges to the Heaviside function.
+    Based on the SEDC matrix, we define the SEDC density as
+    \begin{align*}
+        SEDCD_\tau &= \frac{1}{d(d-1)}\sum_{i \neq j }|SEDC_{\tau,ij}|.
+    \end{align*}
+    This statistical functional can be formulated in terms of estimating equations by defining the parameter vector $\theta\in \R^{d^2 + 3d +1}$ as
+    \begin{align*}
+        \theta = \begin{pmatrix}
+            SEDCD\\
+            (\mu_i)_{i=1,\ldots,d} \\
+            (\sigma_i^2)_{i=1,\ldots, d} \\
+            (\nu_i)_{i=1,\ldots,d}\\
+            (\gamma_{ij})_{i,j=1,\ldots, d}             
+        \end{pmatrix} \leftrightarrow 
+        \begin{pmatrix}
+            SEDCD_\tau\\
+            \E(X_i)_{i=1,\ldots, d}\\
+            \mathrm{Var}(X_i)_{i=1,\ldots,d}\\
+            \E(Y_i)_{i=1,\ldots, d}\\
+            \mathrm{Cov}(Y_i, Y_j)_{i,j=1,\ldots, d} \\
+        \end{pmatrix}.
+    \end{align*}
+    Accordingly, we define the estimating function $H$ as
+    \begin{align*}
+        H(X,\theta)= \begin{pmatrix}
+            (X_i-\mu_i)_{i=1,\ldots, d}\\
+            (X_i^2-\mu_i^2-\sigma_i^2)_{i=1,\ldots, d} \\
+            (Y_i-\nu_i)_{i=1,\ldots, n}\\
+            (Y_iY_j-\nu_i\nu_j-\gamma_{ij})_{i,j=1,\ldots, d}\\
+            SEDCD - \frac{1}{d(d-1)} \sum_{i\neq j} |\frac{\gamma_{i,j}}{\gamma_{0,0}}|
+        \end{pmatrix}.
+    \end{align*}
+    The moment equation $\E H(X,\theta)$ may be solved explicitly by forward substitution, and we have $\theta_{1}=SEDCD_\tau$. Moreover, based on observations $X_1,\ldots, X_n$, the empirical estimating equation $\frac{1}{n}\sum_{t=1}^n H(X_t,\widehat{\theta})$ can be solved by substituting all moments in the SEDCD definition by empirical moments, which is also straightforward. 
+    Thus, the formulation in terms of estimating equations yields the same result as a naive estimator.
+    However, the benefit of the implicit formulation is that it streamlines mathematical treatment and allows for a unified asymptotic theory, covering other examples beyond the extremal downside correlation.
+\end{example}
+
+
+\begin{example}[Robust Time-Varying Regression]
+\label{ex : robtv}
+    Let us consider a non-stationary time series $D_n = \{ X_t, Z_t \}_{t = 1}^n$, where $X_t \in \mathbb{R}^d$ is the vector of predictors and $Z_t \in \mathbb{R}$ is a univariate time series  and the time-varying regression coefficient $\beta_{t,n} = \beta(\frac{t}{n}) = (\beta_0(\frac{t}{n}), \dots, \beta_{d-1}(\frac{t}{n}))^\top$.
+    Then the time-varying M-regression model for non-stationary time series is defined as:
+\begin{align*}
+    H(D_t, \beta_{t,n}) &= X_t \psi(Z_t - X_t^\top \beta_{t,n}), \\
+\intertext{where the true local parameter $\beta_{t,n}$ is identified by the root of}
+    \mathbb{E}[H(D_t, \beta_{t,n})] &= \mathbb{E}[X_t \psi(Z_t - X_t^\top \beta_{t,n})] = 0.
+\end{align*}
+where $\psi(\cdot)$ is the left derivative of a robust, convex loss function $\rho(\cdot)$ \citep{huber1964robust,huber1973robust}. In
+standard least squares  $\psi(u) = u$, here $\psi(\cdot)$ is bounded (or redescending). This ensures that massive residuals $(Z_t - X_t^\top \beta_{t,n})$ have a strictly limited influence on the estimating equation, preventing extreme outliers from distorting the local parameter estimate.
+\end{example}
+
+For the asymptotic theory developed in the sequel, we need to impose certain regularity assumptions on the estimating function $H$.
+
+\begin{assumption}
+    \color{purple}
+    \begin{itemize}
+        \item smoothness
+        \item Boundedness
+        \item Regular Jacobian
+    \end{itemize}
+\end{assumption}
+
+
+
+\section{Estimation}
+
+Recall that the parameter $\theta_{t,n}$ solves the (local) moment equation $\E H(X_{t,n}, \theta_{t,n})=0$.
+This local parameter can be estimated by $\widehat{\theta}_{t,n}$ solving the empirical estimating equation $H(\widehat{\theta}_{t,n})=0$, where
+\begin{align*}
+    H_{t,n}(\theta) = \frac{1}{M}\sum_{i=0}^{M-1} H(X_{t-i,n},\theta),
+\end{align*}
+and $M$ is a bandwidth parameter to be specified later.
+
+
+
+
+
+Consider the linearized estimator
+\begin{align*}
+    \widehat{\Theta}_n^{\textsc{lin}}(u)
+    &=\frac{1}{n} \sum_{t=1}^{\lfloor un \rfloor} \widehat{\theta}_{t,n} - DH_{t,n}(\widehat{\theta}_{t,n})^{-1} H(X_{t+L}, \widehat{\theta}_{t,n}) ,
+\end{align*}
+where $D$ denotes the Jacobian with respect to $\theta$, and $L$ is an offset to be specified later. 
+Moreover, we define $\Theta_{n}(u) = \frac{1}{n} \sum_{t=1}^{\lfloor un\rfloor} \theta_{t+L,n}$.
+
+\begin{theorem}\label{thm:FCLT-linearized}
+    
+\end{theorem}
+\begin{proof}[Proof of Theorem \ref{thm:FCLT-linearized}]
+    The pilot $\widehat{\theta}_{t,n}$ satisfies $H_{t,n}(\widehat{\theta}_{t,n})=0$, and thus
+    \begin{align*}
+        H_{t,n}(\theta_{t+L,n}) 
+        &= H_{t,n}(\theta_{t+L,n}) - H_{t,n}(\widehat{\theta}_{t,n}) \\
+        &= -\nabla H_{t,n}(\widehat{\theta}_{t,n}) + \|D^2H(\widetilde{\theta}_t)\| \|\theta_{t+L,n} - \widehat{\theta}_{t,n}\|^2,
+    \end{align*}
+    for some $\widetilde{\theta}_{t}$ on the line between $\theta_{t+L,n}$ and $\widehat{\theta}_{t,n}$, by the mean value theorem.
+    \color{purple}Upon linearizing the local estimator $\widehat{\theta}_{t,n}$,\color{black}
+    \begin{align*}
+        &\qquad \widehat{\Theta}_{n}(u) - \Theta_n(u) \\
+        &= \frac{1}{n} \sum_{t=1}^{\lfloor un \rfloor} -DH_{t,n}(\widehat{\theta}_{t,n})^{-1} H_{t,n}(\theta_{t+L,n}) - DH_{t,n}(\widehat{\theta}_{t,n})^{-1} H(X_{t+L}, \widehat{\theta}_{t,n})\\
+        &\qquad + \mathcal{O}\left(  \frac{1}{n}\sum_{t=1}^n \|\widehat{\theta}_{t,n}-\theta_{t+L,n}\|^2\right) \\
+        &= -\frac{1}{n} \sum_{t=1}^{\lfloor un \rfloor} DH_{t,n}(\widehat{\theta}_{t,n})^{-1} \left[ H(X_{t+L}, \widehat{\theta}_{t,n}) + H_{t,n}(\theta_{t+L,n}) \right] + R_n
+        \intertext{where $R_n$ collects all remainder terms to be studied later,}
+        &=-\frac{1}{n} \sum_{t=1}^{\lfloor un \rfloor} DH_{t,n}(\widehat{\theta}_{t,n})^{-1} H(X_{t+L}, \theta_{t+L,n})\\
+        &\qquad - \frac{1}{n} \sum_{t=1}^{\lfloor un \rfloor} DH_{t,n}(\widehat{\theta}_{t,n})^{-1} \left[ H(X_{t+L}, \widehat{\theta}_{t,n}) - H(X_{t+L}, \theta_{t+L,n}) + H_{t,n}(\theta_{t+L,n}) -  H_{t,n}(\widehat{\theta}_{t,n})  \right] + R_n \\
+        &= \frac{1}{n} \sum_{t=1}^{\lfloor un \rfloor} DH_{t,n}(\widehat{\theta}_{t,n})^{-1} H(X_{t+L}, \theta_{t+L,n}) + B_n + R_n
+        \quad = A_n(u)+B_n(u)+R_n(u).
+    \end{align*}
+    We will show that $\sqrt{n}A_n$ converges to a Gaussian process, while $B_n$ and $R_n$ are negligible.
+
+    \underline{Regarding $B_n$}, we have
+    \begin{align*}
+        B_n(u)
+        &= \frac{1}{n} \sum_{t=1}^{\lfloor un \rfloor} DH_{t,n}(\widehat{\theta}_{t,n})^{-1} \left[ D H(X_{t+L}, \theta_{t+L,n}) - \frac{1}{M} \sum_{i=0}^{M-1} DH(X_{t-i}, \theta_{t+L,n})\right](\widehat{\theta}_{t,n}-\theta_{t+L,n}) \\
+        &\qquad + \mathcal{O}\left( \frac{1}{n}\sum_{t=1}^n \|\widehat{\theta}_{t,n}-\theta_{t+L,n}\|^2 \right) \\
+        &= \frac{1}{n} \sum_{t=1}^{\lfloor un \rfloor} DH_{t,n}(\widehat{\theta}_{t,n})^{-1} \left[ D H(X_{t+L}, \theta_{t+L,n}) - E_{t+L,t+L} \right](\widehat{\theta}_{t,n}-\theta_{t+L,n}) \\
+        &\qquad + \mathcal{O}\left( \sqrt{ \frac{1}{n}\sum_{t=1}^n \|\widehat{\theta}_{t,n}-\theta_{t+L,n}\|^2} \sqrt{  \frac{1}{n}\sum_{t=1}^n \left\| \frac{1}{M} \sum_{i=0}^{M-1} DH(X_{t-i}, \theta_{t+L,n}) -E_{t+L,t+L}  \right\|^2  } \right)
+    \end{align*}
+    where $E_{s,t}=\E [DH(X_s, \theta_{t,n})]$.
+    \color{purple}The first part will be bounded because $X_{t+L}$ and $\widehat{\theta}_{t,n}$ are nearly independent, and the second term will be controlled by exploiting that $E_t\approx \E DH(X_{t-i}, \theta_{t+L,n})$.\color{black}
+\end{proof}
+
+% \begin{theorem}
+%     Under condition ????, we have
+%     \begin{align*}
+%         \frac{1}{\sqrt{n}} \sum_{t=1}^{\lfloor un\rfloor} (\widehat{\theta}_{t,n}^1-\theta_{t,n}^1) \quad \Rightarrow \quad B\left(\int_0^u v_s^2\, ds\right), \qquad \text{as } n\to \infty,
+%     \end{align*}
+%     with local asymptotic variance $v_s^2=???$.
+% \end{theorem}
+
+
+
+\begin{theorem}\label{thm: variance_consistency}
+Suppose the conditions of Theorem \ref{thm:FCLT-linearized} hold for some moment $q > 4$. Choose a block sequence $b_n \to \infty$ such that $b_n = o(n^{1/3})$. Then, as $n \to \infty$,
+\begin{align*}
+    Q_n(u) & =  \frac{1}{n} \sum_{t=\tau_n+L_n}^{\lfloor nu \rfloor - b_n} \frac{1}{b_n} \left[ -DH_{t,n}(\widehat{\theta}_{t,n})^{-1} \sum_{i=1}^{b_n} H(X_{t+i,n}, \widehat{\theta}_{t,n})\right]^2 \\ &\xrightarrow{P} Q(u) = \int_0^u V(s) ds.
+    \ 
+\end{align*}
+    
+
+\end{theorem}
+
+
+
+Theorem \ref{thm: variance_consistency} provides the theoretical justification for the Multiplier Bootstrap. Because $Q_n(u)$ uniformly converges to the true integrated variance $Q(u)$, we can use it to scale sequences of standard normal variables, generating artificial sample paths that perfectly mimic the asymptotic null distribution of the CUSUM test statistic.
+
+
+
+\section{CUSUM test}
+
+\section{Finite sample performance}
+\subsection{SEDCD}
+
+To assess the finite-sample performance of the proposed linearized CUSUM test for detecting structural breaks in extreme dependence, we conduct a comprehensive Monte Carlo simulation study. Our experimental design evaluates both the empirical size (under the null hypothesis of a constant extreme dependence structure) and the empirical power (under the alternative hypothesis of a changing dependence structure). Crucially, we test the robustness of the procedure to non-stationary nuisance parameters by introducing structural changes exclusively in the marginal distributions.
+
+We consider multivaraite ($d=5$) time series with varying sample lengths $n \in \{100, 500, 2000, 5000\}$. To approximate the asymptotic critical values, we employ the multiplier bootstrap scheme with $B = 10^3$ replications for each Monte Carlo iteration $M=10^4$. 
+
+
+
+To ensure our simulations capture extreme structural co-movements in the lower tail of the multivariate distributionr, we utilize two distinct parametric copula families:
+
+\paragraph{ Clayton Copula.} For a $d$-dimensional vector of uniform marginals $u_1, u_2, \dots, u_d \in [0, 1]^d$, the multivariate Clayton copula is defined as:
+\begin{equation}
+    C_\theta^d(u_1, \dots, u_d) = \left( \sum_{i=1}^d u_i^{-\theta} - d + 1 \right)^{-1/\theta},
+    \label{eq : Clayton}
+\end{equation}
+where $ \theta \in (0, \infty)$ governs the dependence  structure.
+The Clayton copula exhibits an asymmetric tail dependence. In particular, it possesses positive lower-tail dependence and zero upper-tail dependence. The lower-tail dependence coefficient is given by $\lambda_L = 2^{-1/\theta}$, while  $\lambda_U = 0$. Consequently, the Clayton specification is well-suited for modeling asymmetric systemic risk characterized by stronger dependence during extreme joint downturns.
+
+\paragraph{ Student-t Copula.} 
+For a $d$-dimensional vector of uniform marginals $u_1, u_2, \dots, u_d \in [0, 1]^d$, the $d$-dimensional Student-t copula  is defined as:
+\begin{equation}
+    C_{\nu, \Sigma}^d(u_1, \dots, u_d) = \mathbf{t}_{\nu, \Sigma}^d \left( t_\nu^{-1}(u_1), \dots, t_\nu^{-1}(u_d) \right),
+    \label{eq : t-copula}
+\end{equation}
+where $t_{\nu,\Sigma}^{(d)}$ denotes the cdf of a $d$-dimensional Student-$t$ distribution with covariance matrix $\Sigma$ and $\nu$ degrees of freedom, and $t_\nu^{-1}$ denotes the quantile function of the univariate Student-$t$ distribution. In contrast to the Clayton copula, the Student-$t$ copula exhibits symmetric upper- and lower-tail dependence. \\
+
+The multivariate DGP $\mathbf{X}_t = (X_{1,t}, \dots, X_{d,t})^\top$ is obtained by transforming each uniform component derived from Equations (\ref{eq : Clayton}) and (\ref{eq : t-copula}) through the quantile function of the target distributions, defined as follows:
+
+\paragraph{ Fr\'echet Marginals.} 
+The standard Fr\'echet cdf with shape parameter $\alpha > 0$ is defined as $F(x; \alpha) = \exp\left(-x^{-\alpha}\right)$ for $x > 0$. This yields the corresponding closed-form quantile function  $F^{-1}(u; \alpha) = (-\ln u)^{-1/\alpha}$ for $u \in (0,1)$, so that the baseline observations are generated as:
+\begin{equation} \label{eq:dgp}
+    X_{i,t} = F^{-1}(U_{i,t}; \alpha), \quad \text{for } i = 1, \dots, d \text{ and } t = 1, \dots, n.
+\end{equation}
+
+\paragraph{ Time-Varying Fr\'echet Marginals.}
+To evaluate the robustness of the testing procedure against non-stationary nuisance parameters, we define a periodic scaling function $c(s)$ on the rescaled time interval $s \in [0,1]$ as $c(s) = 1 + 0.5 \sin(2\pi s)$.
+
+By applying this time-varying volatility to the quantile function, the non-stationary observations are generated as:
+\begin{equation} \label{eq:dgp_time_varying}
+    X_{i,t} = c\left(\frac{t}{n}\right) \cdot F^{-1}(U_{i,t}; \alpha), \quad \text{for } i = 1, \dots, d \text{ and } t = 1, \dots, n.
+\end{equation}
+
+
+The practical implementation of our change-point framework requires specifying the local estimation bandwidth $k$. In this simulation we use $k$ that minimizes the system of equations on an unseen future observation at lag $L_n$. Formally, the optimal bandwidth is selected by solving:
+\begin{equation}
+    k^{\textsc{opt}} = \arg\min_{k \in \mathcal{K}_n} \Lambda(k), \qquad \text{where} \quad \Lambda(k) = \sum_{t=k}^{N - L_n} \left\| H\left(X_{t+L_n,n}, \widehat{\theta}_{t}(k)\right) \right\|^2
+\end{equation}
+where $\mathcal{K}_n = [N^{0.35}, N^{0.55}]$ defines the admissible search space, ensuring asymptotic consistency and $L_n \in \left\{ \lfloor \log n \rfloor, \lfloor n^{0.15} \rfloor, \lfloor n^{0.20} \rfloor \right\}$. This implicit predictive extension ensures that the selected bandwidth directly optimizes the structural stability of the underlying GEE system. Table \textcolor{red}{Future Table} reports the empirical probability of Type 1 error for different levels of $\tau \in \left\{-2, -2.5, -3 \right\}$.
+
+\subsection{Robust Time-varing Regression}
+
+To assess the empirical size and robustness of the proposed structural break test for Example \ref{ex : robtv}, we simulate data under the null hypothesis of no structural change. The true time-varying regression coefficient is strictly constant:
+\begin{equation*}
+    H_0: \beta\left(\frac{t}{n}\right) \equiv \beta_0 = \begin{pmatrix} 1 \\ 2 \end{pmatrix} \quad \text{for all } t = 1, \dots, n.
+\end{equation*}
+
+\paragraph{Simulation Data Generating Process}
+Following \cite{Mies2023}, we define the true latent  data-generating process as a locally stationary system:
+\begin{align}
+    Z_{t,n}^* &= \beta_0^\top W_{t,n}^* + X_{t,n}^*, \\
+    X_{t,n}^* &= a(u)X_{t-1,n}^* + \sigma(u) \eta(u),\quad u = \frac{t}{n}.\label{eq : AR(1)}
+\end{align}
+
+
+where $W_{t,n}^* \sim \mathcal{N}(0, \Sigma(u))$ with predictor covariance matrix defined as $\Sigma(u) = A(u)^\top A(u)$, where the transformation matrix $A(u)$ is given by:
+\begin{equation*}
+    A(u) = \begin{pmatrix} \frac{1}{2+|\sin(2\pi u)|} & 0 \\ 1 & 2 \end{pmatrix} 
+\end{equation*}
+
+where $\eta_t(u)$ are independent, zero-mean innovations following a symmetrized Gamma distribution with shape parameter $\alpha(u)$, standardized to unit variance. The structural parameters are defined as:
+
+\begin{gather*}
+    \sigma(u) = 0.5 + |\sin(2\pi u)|, \quad
+    \alpha(u) = \begin{cases} 1, & u \le 0.7 \\ 2, & u > 0.7 \end{cases}, \quad
+    a(u) = 0.2 + \frac{u}{2}.
+\end{gather*}
+
+ We evaluate the false positive rate across five distinct scenarios, testing targeted contamination rates of $\varepsilon \in \{0.05, 0.10, 0.20\}$.
+
+
+\paragraph{Scenario 1} (Stationary Process) The process is strictly stationary, serving as a control group. We remove the time-varying dependence ($u$) from the data-generating process, setting the constant parameters:
+$   \sigma= 1 , \alpha = 2, 
+    a = 0.5 .$
+    The observed data is uncontaminated: $(W_{t,n}^{obs}, Z_{t,n}^{obs}) = (W_{t,n}^*, Z_{t,n}^*)$.
+    
+  \paragraph{Scenario 2}(Non-stationary process)  We introduce smooth, locally stationary dynamics. The predictor variance $\Sigma(u)$, memory $a(u)$, and volatility $\sigma(u)$ . The data remains uncontaminated. \textit{Note: Scenarios 3, 4, and 5 inherit this non-stationary background.}
+    
+  \paragraph{Scenario 3}(Additive Outliers)  We contaminate the predictors with independent Additive Outliers (AO). Let $I_t \sim \text{Bernoulli}(\varepsilon)$. A heavy-tailed Cauchy shock contaminates the observed predictors, $W_{t,n}^{obs} = W_{t,n}^* + I_t \nu_t$ where $\nu_t \sim \text{Cauchy}(0, \gamma)$, while the response remains clean.
+    
+      \paragraph{Scenario 4} (Replacement Outliers) We simulate patch outliers using a two-state Markov chain $S_t \in \{0, 1\}$, where State 1 denotes a Replacement Outlier (RO). To achieve a stationary contamination probability of $P(S_t = 1) = \varepsilon$ and a recovery probability of $P(S_t = 0 \mid S_{t-1} = 1) = 0.95$, the failure transition is calibrated to $P(S_t = 1 \mid S_{t-1} = 0) = \frac{0.95\varepsilon}{1-\varepsilon}$. During an RO state ($S_t = 1$), both the predictor and response are entirely overwritten by Cauchy noise, $(W_{t,n}^{obs}, Z_{t,n}^{obs}) = (\nu_t, \omega_t)$, where $\nu_t, \omega_t \sim \text{Cauchy}(0, \gamma)$.
+     
+    \paragraph{Scenario 5}  (Innovation Outliers) We inject outliers directly into the structural innovations of Equation (\ref{eq : AR(1)}). Let $I_t \sim \text{Bernoulli}(\varepsilon)$. The contaminated noise drives the response:
+    \begin{equation}
+        X_{t,n}^{IO} = a\left(\frac{t}{n}\right)X_{t-1,n}^{IO} + \sigma\left(\frac{t}{n}\right) \big(\eta_t + I_t \omega_t^{IO}\big),
+    \end{equation}
+    where $\omega_t^{IO} \sim \text{Cauchy}(0, \gamma)$. Because this shock enters the autoregressive equation, it propagates dynamically into future observations.
+
+
+
+
+ 
+\section{Application on European Electricity Market}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/LinCUSUM.png}
+    \caption{\textbf{CUSUM Test Statistic for SEDCD in the European Electricity Market.} 
+    The solid line represents the empirical test statistic $T_n(u)$ over the fractional time $u \in [0,1]$. The dashed line indicates the 95\% critical thresholds obtained via the multiplier bootstrap. The model parameters scale with the sample size $N$ to ensure uniform consistency: local estimation bandwidth $k = \lfloor N^{0.45} \rfloor$, variance block size $b_n = \lfloor N^{0.15} \rfloor$, decoupling lag $L = \lfloor N^{0.15} \rfloor$, and burn-in cutoff $\tau_n = \lfloor N^{0.7} \rfloor$. The SEDCD metric isolates extreme market downturns using a threshold $\tau = -3$ with a logistic smoothing parameter $\gamma = 0.1$. Critical values are simulated using $MC = 100$ bootstrap iterations.}
+    \label{fig:cusum_electricity}
+\end{figure}
+\section{Discussion}
+
+\newpage
+\bibliographystyle{apalike}
+\bibliography{references}
+
+\end{document}
