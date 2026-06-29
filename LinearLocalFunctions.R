@@ -20,7 +20,7 @@ H_eqn <- function(X_mat, theta, tau, gamma) {
   
   z <- sweep(X_mat, 2, mu_x, FUN="-")
   z <- sweep(z, 2, sqrt(pmax(sig2_x, 1e-6)), FUN="/")
-  y <- z * (1 / (1 + exp(-(tau - z)/ gamma)))
+  y <- z * (1 / (1 + exp(-(-tau - z)/ gamma)))
   
   h_mu_x   <- sweep(X_mat, 2, mu_x, FUN="-")
   h_sig2_x <- sweep(h_mu_x^2, 2, sig2_x, FUN="-")
@@ -52,7 +52,7 @@ solve_theta <- function(X_window, tau = 3, gamma=0.1) {
   
   Z_window <- sweep(X_window, 2, mu_x, FUN="-")
   Z_window <- sweep(Z_window, 2, sqrt(sig2_x), FUN="/")
-  Y_window <- Z_window * (1 / (1 + exp(-(tau -Z_window) / gamma)))
+  Y_window <- Z_window * (1 / (1 + exp(-(-tau -Z_window) / gamma)))
   
   mu_y <- colMeans(Y_window)
   sig2_y <- pmax(apply(Y_window, 2, var), 1e-6)

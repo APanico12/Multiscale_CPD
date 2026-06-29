@@ -40,7 +40,7 @@ X_matrix <- as.matrix(df[, -1])
 rownames(X_matrix) <- df[,1]
 
 # Select first five markets
-#X_matrix <- X_matrix[,1:5]
+X_matrix <- X_matrix[,1:5]
 
 # Remove missing values
 X_matrix <- na.omit(X_matrix)
@@ -86,6 +86,10 @@ MC <- 1000
 ############################################################
 
 cat("Executing Linearized SEDCD CUSUM...\n")
+
+# Set a random seed for reproducibility of the bootstrap p-value
+# Using the same seed will guarantee the exact same results on every run.
+set.seed(123)
 
 out <- CUSUM_SEDCD(
   x = X_matrix, 
