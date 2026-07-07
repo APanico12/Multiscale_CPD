@@ -16,7 +16,7 @@ rownames(X_matrix) <- df[, 1]
 str(X_matrix)
 head(X_matrix)
 
-CUSUM_TEST(X_matrix,MC=1e3,ratio = 1/3 , plotting = TRUE)
+CUSUM_TEST(X_matrix,MC=1e3,ratio = 2/3 , plotting = TRUE)
 # plot_one(X_matrix)
 # plot_cusum(X_matrix)
 

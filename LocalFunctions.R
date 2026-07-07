@@ -1,7 +1,7 @@
 # Here are the function to compute EDC and Dn and Variance 
 
-sigmoid <- function(z, M=10){
-  1/(1+exp(-z*M))
+sigmoid <- function(z, gamma =0.1){
+  1/(1+exp(-z*gamma))
 }
 
 
@@ -11,7 +11,7 @@ edc <- function(x, tau=2){
   d = ncol(x)
   for(i in 1:d){
     x[,i] = (x[,i] - mean(x[,i]))/sd(x[,i]) #standardize columns
-    x[,i] = x[,i] * sigmoid(x[,i] - tau) #smooth threshold, only consider data below tau
+    x[,i] = x[,i] * sigmoid(-x[,i] - tau) #smooth threshold, only consider data below tau
   }
   
   res = list()

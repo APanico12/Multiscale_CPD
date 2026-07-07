@@ -1,5 +1,4 @@
 library(numDeriv)
-library(zoo)
 
 sigmoid <- function(z, gamma = 1.0){
   1/(1+exp(-z/gamma))
@@ -195,36 +194,41 @@ for(i in 1:MC){
     legend("bottomleft", c("10% threshold", "5% threshold"), lty=c(2,3))
   }
   
-p = mean(Z.mc > Z)
-return(p)
+  p_value <- mean(Z.mc > Z)
+  
+  # Return a list containing the p-value and the test statistic.
+  # This makes the function's output more explicit and extensible.
+  return(list(p_value = p_value, test_stat = Z))
 }
 
 # ###########################
 # #Example of usage
 # ###########################
 
-source("DGP.R")
-set.seed(123)
-alpha_param = 3
+# source("DGP.R")
+# set.seed(123)
+# alpha_param = 3
 
-X = Gen.from.clayton(n = 1000, d = 5, theta = 1, alpha_param = alpha_param, time_varying = FALSE)
-X = rbind(X,Gen.from.clayton(n = 1000, d = 5, theta = 3, alpha_param = alpha_param, time_varying = FALSE))
-#standardize the data using Variance stabilizing transformation
+# X = Gen.from.clayton(n =1000, margins_df = 5)
+# X = rbind(X,Gen.from.clayton(n =1000, theta = 3, margins_df = 5))
+# plot(X[1:1000,1],X[1:1000,2])
+# plot(X[1000:2000,1],X[1000:2000,2])
 
-n = nrow(X)
-d =ncol(X)
-k = floor(n^0.65)
-lag = floor(log(n))
+# n = nrow(X)
+# d =ncol(X)
+# k = floor(n^0.75)
+# lag = floor(0.1 * log(n)^2)
 
-tau_val <- -3
-gamma_val <- 1.0
+# tau_val <- -1
+# gamma_val <- 0.1
 
-teta = get.teta.sedcd(X, k, tau = tau_val, gamma = gamma_val)
-# int.sedcd.antonio = int.par.sedcd(X, teta, lag=lag, cutoff=k+lag, k, tau = tau_val, gamma = gamma_val)
+# teta = get.teta.sedcd(X, k, tau = tau_val, gamma = gamma_val)
+# # int.sedcd.antonio = int.par.sedcd(X, teta, lag=lag, cutoff=k+lag, k, tau = tau_val, gamma = gamma_val)
 
-# var.est.antonio = var.est.sedcd(X, teta, block = lag, lag = lag, cutoff = 1, k, tau = tau_val, gamma = gamma_val)
+# # var.est.antonio = var.est.sedcd(X, teta, block = lag, lag = lag, cutoff = 1, k, tau = tau_val, gamma = gamma_val)
 
-p_value_sedcd = CUSUM.sedcd(X, teta = teta, lag = lag, block = lag,
-                            cutoff = k + lag + 10, k = k,
-                            tau = tau_val, gamma = gamma_val,
-                            MC = 1000, plotting = TRUE)
+# result_sedcd <- CUSUM.sedcd(X, teta = teta, lag = lag, block = lag,
+#                             cutoff = k + lag + 10, k = k,
+#                             tau = tau_val, gamma = gamma_val,
+#                             MC = 1000, plotting = TRUE)
+# p_value_sedcd <- result_sedcd$p_value
