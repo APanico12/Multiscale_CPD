@@ -26,7 +26,7 @@ MC.Bootstrap <- 100
 MC.levels <- 1e3
 
 #Set up DGP
-n_values = c(100, 500, 2000)
+n_values = c(2000)#, 500, 2000,5000)
 d = 5
 rho = 0 # pairwisecorr sigmat_matrix
 nu = 3 #dgf t
@@ -34,8 +34,8 @@ theta.Clayton = 2
 nu_param = 5 #df t marginals
 
 #tau and L_n types
-tau_values = c(-1, -2)
-L_n_types = c("0.1(log(n))^2")
+tau_values = c(-1, -1.5,-2)
+L_n_types = c("0.75(log(n))^2","0.5(log(n))^2","0.25(log(n))^2")
 
 #Implement the DGP
 dgp_functions <- list(
@@ -85,7 +85,7 @@ sim_grid <- do.call(rbind, grid_list)
 # ─────────────────────────────────────────────
 find_k_opt <- function(X, L_n, tau, gamma) {
   N <- nrow(X)
-  k_min <- max(1, floor(N^0.4))
+  k_min <- max(1, floor(N^0.35))
   k_max <- floor(N^0.75)
   # evaluate on a small grid of 5 points to save computation time
   k_grid <- unique(floor(seq(k_min, k_max, length.out = 5)))
@@ -115,13 +115,14 @@ find_k_opt <- function(X, L_n, tau, gamma) {
 # ─────────────────────────────────────────────
 run_one <- function(n, dgp_name, dgp_functions, tau, L_n_type) {
   
+  # Generate data from the specified DGP
   X_sim <- dgp_functions[[dgp_name]](n)
 
-  if (L_n_type == "0.1(log(n))^2") {
-    lag <- max(1, floor(0.1*log(n)^2))
-    }
- 
-  gamma <- 1
+  # Robustly parse the lag multiplier from the L_n_type string
+  lag_multiplier <- as.numeric(regmatches(L_n_type, regexpr("^[0-9.]+", L_n_type)))
+  lag <- max(1, floor(lag_multiplier * log(n)^2))
+  
+  gamma <- 0.1
   
   k_opt <- find_k_opt(X_sim, lag, tau, gamma)
   

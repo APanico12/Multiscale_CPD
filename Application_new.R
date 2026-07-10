@@ -124,7 +124,7 @@ cat("Starting cross-validation for optimal bandwidth k...\n")
 k_grid <- floor(seq(N^0.35, N^0.75, length.out = 5))
 
 # Define lag for cross-validation
-L_n <- floor(0.1*log(N)^2)
+L_n <- floor(0.25*log(N)^2)
 
 cv_results <- sapply(k_grid, function(k_val) {
   cat("Testing k =", k_val, "\n")

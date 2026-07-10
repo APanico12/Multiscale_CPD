@@ -1,4 +1,5 @@
 library(numDeriv)
+library(MASS) # For ginv()
 
 sigmoid <- function(z, gamma = 1.0){
   1/(1+exp(-z/gamma))
@@ -68,13 +69,22 @@ Heq.sedcd <- function(X_window, teta, tau = -3, gamma = 1.0){
   Y_smoothed <- Z * sigmoid(tau - Z, gamma = gamma)
 
   # h_sedcd: 1 equation (a constraint on parameters, independent of X_window)
+  # The original implementation had a bug mixing combn and lower.tri indexing.
+  # This version correctly calculates correlations for each pair.
   pairs <- combn(d, 2)
-  gamma_diag <- diag(gamma_mat)
-  denom <- sqrt(gamma_diag[pairs[1,]] * gamma_diag[pairs[2,]])
-  safe_denom <- ifelse(denom > 1e-9, denom, 1) # Avoid division by zero
-  correlations <- gamma_mat[lower.tri(gamma_mat)] / safe_denom
-  sedcd_from_gamma <- mean(abs(correlations))
-  h_sedcd <- matrix(sedcd_param - sedcd_from_gamma, nrow = n_obs, ncol = 1) #? 
+  correlations_vec <- numeric(ncol(pairs))
+  for(k_pair in 1:ncol(pairs)){
+    i <- pairs[1, k_pair]
+    j <- pairs[2, k_pair]
+    denom <- sqrt(gamma_mat[i,i] * gamma_mat[j,j])
+    safe_denom <- ifelse(denom > 1e-12, denom, 1) # Avoid division by zero
+    correlations_vec[k_pair] <- gamma_mat[i,j] / safe_denom
+  }
+  
+  # Use a smooth approximation of abs() to ensure differentiability for the jacobian
+  smooth_abs_eps <- 1e-8
+  sedcd_from_gamma <- mean(sqrt(correlations_vec^2 + smooth_abs_eps))
+  h_sedcd <- matrix(sedcd_param - sedcd_from_gamma, nrow = n_obs, ncol = 1)
   # h_means: d equations
   h_means <- sweep(X_window, 2, mu_vec, FUN = "-")
   # h_vars: d equations
@@ -113,7 +123,7 @@ for(t in (cutoff:N)){
             ws = max(1, t - lag - k + 1)
             X_window = x[ws:(t - lag),]
             DH = DH.sedcd(X_window, teta_t_lag, tau = tau, gamma = gamma)
-            DH_inv <- solve(DH)
+            DH_inv <- ginv(DH)
             H_val <- Heq.sedcd(x[t,], teta_t_lag, tau = tau, gamma = gamma)
             Lin.teta[t, ] <- teta_t_lag - as.vector(DH_inv %*% t(H_val))
   }
@@ -145,7 +155,7 @@ var.est.sedcd <- function(x, teta, block = 1, lag = 1, cutoff = 1, k, tau = -3, 
     ws <- max(1, param_idx - k + 1)
     X_window <- x[ws:param_idx, ]
     DH <- DH.sedcd(X_window, teta_t_lag, tau = tau, gamma = gamma)
-    DH_inv <- solve(DH)
+    DH_inv <- ginv(DH)
     H_val_block <- Heq.sedcd(x[(t - block + 1):t, ], teta_t_lag, tau = tau, gamma = gamma)
     q_par <- -DH_inv %*% colSums(H_val_block) # Result is a Px1 vector
     q_sq[t, ] <- as.vector(q_par^2)
