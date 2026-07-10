@@ -41,7 +41,7 @@ str(df)
 ############################################################
 countries <- c("DE_LU", "IT_NORD", "FR", "AT", "PL", "ES", "BE", "NL")
 colnames(df)<-c("Date",countries)
-sel_countries <- c("DE_LU", "IT_NORD", "BE", "PL", "NL","FR") #with this configuration we detect a change 
+sel_countries <- c("DE_LU", "IT_NORD", "BE", "PL", "NL","FR") 
 price_matrix <- as.matrix(df[, -1])
 
 X_matrix <- diff(price_matrix) 
@@ -96,7 +96,7 @@ cat(
 # Since the data is now standardized residuals, we can set tau based on
 # standard normal quantiles to isolate the extreme tail.
 # We use the 5% quantile, as suggested.
-tau = -2.33 # qnorm(0.05)
+tau = -1.68 # qnorm(0.05)
 gamma <- 0.1
 cv_loss <- function(x, k, lag, tau, gamma) {
     N <- nrow(x)
@@ -121,7 +121,7 @@ cv_loss <- function(x, k, lag, tau, gamma) {
 cat("Starting cross-validation for optimal bandwidth k...\n")
 
 # Define search space for k
-k_grid <- floor(seq(N^0.4, N^0.75, length.out = 5))
+k_grid <- floor(seq(N^0.35, N^0.75, length.out = 5))
 
 # Define lag for cross-validation
 L_n <- floor(0.1*log(N)^2)

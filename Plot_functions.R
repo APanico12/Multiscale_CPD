@@ -154,114 +154,104 @@ plot_cusum_test <- function(u_seq,
 
 # ── 7. plot_stat_histograms_by_level ──────────────────────────────────────────
 plot_pvalue_histograms_fabian <- function(sim_results,
-                                          target_tau = NULL,
-                                          target_Ln = NULL,
-                                          main_title = NULL,
+                                          main_title_prefix = "P-value Distribution",
                                           n_breaks = 10) {
-  sub_df = sim_results
-  
-  # Filter by tau if specified
-  if (!is.null(target_tau)) {
-    sub_df <- sub_df[sub_df$tau == target_tau, ]
-  }
-  # Filter by L_n_type if specified
-  if (!is.null(target_Ln)) {
-    sub_df <- sub_df[sub_df$L_n_type == target_Ln, ]
-  }
-  
-  # Get the DGPs and Sample sizes in a fixed order
-  dgp_names <- sort(unique(sub_df$dgp_name))
-  n_vals    <- sort(unique(sub_df$n_values))
-  
-  # Vertical DGPs (rows), Horizontal n values (columns)
-  rows <- length(dgp_names)
-  cols <- length(n_vals)
-  
-  # Setup multi-panel layout aligned with global theme
-  # We inherit fonts and sizes from .set_theme(), just overriding layout/margins
-  old_par <- par(
-    mfrow = c(rows, cols),
-    pty   = "s",               # Keep panels square
-    oma   = c(2, 0, 4.5, 0),   # Outer margin for main title
-    mar   = c(3.5, 3.5, 2, 1)  # Tighter margins to match the compact theme
-  )
-  on.exit(par(old_par))
-  
-  # Define break points fixed at [0,1]
-  breaks_fixed <- seq(0, 1, length.out = n_breaks + 1)
-  
-  # Loop over DGPs
-  for (dgp in dgp_names) {
-    for (n_val in n_vals) {
-      
-      pvals <- sub_df$stat[sub_df$dgp_name == dgp & sub_df$n_values == n_val]
-      pvals <- pvals[!is.na(pvals)]
-      
-      M_obs <- length(pvals)
-      
-      if (M_obs == 0) {
-         plot.new()
-         title(main = sprintf("%s | n = %d", dgp, n_val))
-         text(0.5, 0.5, "No data")
-         next
-      }
-      
-      # Compute histogram on [0,1] scale
-      h <- hist(pvals, 
-                breaks = breaks_fixed, 
-                plot   = FALSE)
-      
-      # Convert to RELATIVE frequency
-      h$counts <- h$counts / sum(h$counts)   
-      
-      # Empirical rejection rate at 5%
-      rej_rate <- mean(pvals <= 0.05)
-      
-      # Draw the histogram
-      plot(h,
-         freq    = TRUE,
-         col     = adjustcolor(.COL_PROCESS, 0.70), # Aligned with plot_size_power
-         border  = "white",
-         xlim    = c(0, 1),
-         ylim    = c(0, max(max(h$counts), 1/n_breaks) * 1.4),
-         main    = sprintf("%s | n = %d", dgp, n_val),
-         xlab    = "Bootstrap p-value",
-         ylab    = "Relative frequency",
-         axes    = FALSE)
-    
-    # Clean axes
-    axis(1, at = seq(0, 1, by = 0.2))
-    axis(2, las = 1)
-    box() # Implicitly uses bty = "o" from .set_theme()
-    
-    # Uniform H0 reference line (Aligned styling)
-    abline(h   = 1 / n_breaks,
-           col = .COL_MEAN,
-           lty = .LTY_MEAN,
-           lwd = .LWD_REF)
-    
-    # Aligned panel legend
-    legend("topleft", 
-           legend = c(sprintf("Rate (5%%) = %.3f", rej_rate),
-                      sprintf("M = %d", M_obs)),
-           col    = c(.COL_MEAN, NA),
-           lty    = c(.LTY_MEAN, NA),
-           lwd    = c(.LWD_REF, NA),
-           bty    = "n",
-           cex    = 0.45,            
-           inset  = c(-0.02, 0))
-    }
-  }
-  
-  # Master title
-  if (is.null(main_title)) {
-    main_title <- sprintf(
-      "P-value Distribution across DGPs and Sample Sizes%s%s",
-      if(!is.null(target_tau)) sprintf(" (Tau = %s)", target_tau) else "",
-      if(!is.null(target_Ln)) sprintf(" (Ln = %s)", target_Ln) else ""
+  # Save original graphical parameters to restore them on exit
+  op <- par(no.readonly = TRUE)
+  on.exit(par(op))
+
+  # Identify all unique combinations of non-grid parameters (tau, L_n_type)
+  param_combos <- sim_results %>%
+    select(tau, L_n_type) %>%
+    distinct()
+
+  # Loop over each parameter combination to create a separate plot for each
+  for (i in 1:nrow(param_combos)) {
+    current_tau <- param_combos$tau[i]
+    current_Ln <- param_combos$L_n_type[i]
+
+    # Filter the main dataframe for the current combination
+    sub_df <- sim_results %>%
+      filter(tau == current_tau, L_n_type == current_Ln)
+
+    # Get the DGPs and Sample sizes in a fixed order for this subset
+    dgp_names <- sort(unique(sub_df$dgp_name))
+    n_vals    <- sort(unique(sub_df$n_values))
+
+    # Vertical DGPs (rows), Horizontal n values (columns)
+    rows <- length(dgp_names)
+    cols <- length(n_vals)
+
+    # Setup multi-panel layout for the current plot
+    par(
+      mfrow = c(rows, cols),
+      pty   = "s",               # Keep panels square
+      oma   = c(2, 0, 4.5, 0),   # Outer margin for main title
+      mar   = c(3.5, 3.5, 2, 1)  # Tighter margins
     )
+
+    breaks_fixed <- seq(0, 1, length.out = n_breaks + 1)
+
+    # Loop over DGPs and sample sizes to create each panel
+    for (dgp in dgp_names) {
+      for (n_val in n_vals) {
+        
+        pvals <- sub_df$stat[sub_df$dgp_name == dgp & sub_df$n_values == n_val]
+        pvals <- pvals[!is.na(pvals)]
+        
+        M_obs <- length(pvals)
+        
+        if (M_obs == 0) {
+           plot.new()
+           title(main = sprintf("%s | n = %d", dgp, n_val))
+           text(0.5, 0.5, "No data")
+           next
+        }
+        
+        h <- hist(pvals, breaks = breaks_fixed, plot = FALSE)
+        h$counts <- h$counts / sum(h$counts) # Convert to relative frequency
+        
+        rej_rate <- mean(pvals <= 0.05)
+        
+        plot(h,
+           freq    = TRUE,
+           col     = adjustcolor(.COL_PROCESS, 0.70),
+           border  = "white",
+           xlim    = c(0, 1),
+           ylim    = c(0, max(max(h$counts), 1/n_breaks) * 1.4),
+           main    = sprintf("%s | n = %d", dgp, n_val),
+           xlab    = "Bootstrap p-value",
+           ylab    = "Relative frequency",
+           axes    = FALSE)
+      
+      axis(1, at = seq(0, 1, by = 0.2))
+      axis(2, las = 1)
+      box()
+      
+      abline(h   = 1 / n_breaks,
+             col = .COL_MEAN,
+             lty = .LTY_MEAN,
+             lwd = .LWD_REF)
+      
+      legend("topleft", 
+             legend = c(sprintf("Rate (5%%) = %.3f", rej_rate),
+                        sprintf("M = %d", M_obs)),
+             col    = c(.COL_MEAN, NA),
+             lty    = c(.LTY_MEAN, NA),
+             lwd    = c(.LWD_REF, NA),
+             bty    = "n",
+             cex    = 0.45,            
+             inset  = c(-0.02, 0))
+      }
+    }
+
+    # Construct and add a dynamic main title for the entire plot
+    main_title <- sprintf(
+      "%s (Tau = %s, Ln = %s)",
+      main_title_prefix,
+      current_tau,
+      current_Ln
+    )
+    mtext(main_title, outer = TRUE, font = 2, cex = 0.65, col = "grey10")
   }
-  
-  # Outer title styled to match the compact aesthetic
-  mtext(main_title, outer = TRUE, font = 2, cex = 0.65, col = "grey10")
 }

@@ -399,8 +399,28 @@ The practical implementation of our change-point framework requires specifying t
 \begin{equation}
     k^{\textsc{opt}} = \arg\min_{k \in \mathcal{K}_n} \Lambda(k), \qquad \text{where} \quad \Lambda(k) = \sum_{t=k}^{N - L_n} \left\| H\left(X_{t+L_n,n}, \widehat{\theta}_{t}(k)\right) \right\|^2
 \end{equation}
-where $\mathcal{K}_n = [N^{0.35}, N^{0.55}]$ defines the admissible search space, ensuring asymptotic consistency and $L_n \in \left\{ \lfloor \log n \rfloor, \lfloor n^{0.15} \rfloor, \lfloor n^{0.20} \rfloor \right\}$. This implicit predictive extension ensures that the selected bandwidth directly optimizes the structural stability of the underlying GEE system. Table \textcolor{red}{Future Table} reports the empirical probability of Type 1 error for different levels of $\tau \in \left\{-2, -2.5, -3 \right\}$.
+where $\mathcal{K}_n = [N^{0.35}, N^{0.55}]$ defines the admissible search space, ensuring asymptotic consistency and $L_n \in \left\{ \lfloor \log n \rfloor, \lfloor n^{0.15} \rfloor, \lfloor n^{0.20} \rfloor \right\}$. This implicit predictive extension ensures that the selected bandwidth directly optimizes the structural stability of the underlying GEE system. Table \ref{tab:tab:empirical_size_10} reports the empirical probability of Type 1 error for different levels of $\tau \in \left\{-2, -1 \right\}$.
 
+\begin{table}
+
+\caption{\label{tab:tab:empirical_size_10}Empirical Size at 10\% Significance Level.}
+\centering
+\begin{tabular}[t]{llccc}
+\toprule
+DGP & tau & 100 & 500 & 2000\\
+\midrule
+Clayton & -2 & 0.029 & 0.046 & 0.046\\
+Clayton & -1 & 0.032 & 0.044 & 0.047\\
+Clayton\_Sine & -2 & 0.033 & 0.038 & 0.044\\
+Clayton\_Sine & -1 & 0.032 & 0.039 & 0.048\\
+T\_Copula & -2 & 0.047 & 0.048 & 0.046\\
+\addlinespace
+T\_Copula & -1 & 0.036 & 0.052 & 0.042\\
+T\_Copula\_Sine & -2 & 0.036 & 0.048 & 0.041\\
+T\_Copula\_Sine & -1 & 0.039 & 0.043 & 0.038\\
+\bottomrule
+\end{tabular}
+\end{table}
 \subsection{Robust Time-varing Regression}
 
 To assess the empirical size and robustness of the proposed structural break test for Example \ref{ex : robtv}, we simulate data under the null hypothesis of no structural change. The true time-varying regression coefficient is strictly constant:
