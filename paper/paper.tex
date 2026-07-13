@@ -17,7 +17,7 @@
 \newtheorem{example}{Example}[section]
 \theoremstyle{definition}
 \newtheorem{definition}{Definition}[section]
-\theoremstyle{theorem}
+\theoremstyle{plain}
 \newtheorem{theorem}{Theorem}[section]
 % Graphics & TikZ
 \usepackage{graphicx}
@@ -64,14 +64,12 @@
 
 
 \title{\textbf{Functional change-point detection for extreme dependence structure with application to  European electricity market}}
-\author[]{}
-% \author[1]{Antonio Panico\thanks{Email: antonio.panico@unipr.it}}
-%\author[2]{Andrew Burlinson}
-%\author[1]{Luigi Grossi}
+\author[1]{Antonio Panico\thanks{Email: antonio.panico@unipr.it}}
+\author[2]{Fabian Mies}
+\author[1]{Luigi Grossi}
 
-% \affil[1]{Department of Engineering for Industrial Systems and Technologies, University of Parma, 43124 Parma, Italy}
-%\affil[2]{School of Economics, University of Sheffield, Sheffield, UK}
-%\email{Antonio.panico@unipr.it}
+\affil[1]{Department of Economics and Management, University of Parma, 43124 Parma, Italy}
+\affil[2]{Institute of Econometrics and Statistics, University of Cologne, 50923 Cologne, Germany}
 
 \date{} % <-- niente data
 
@@ -80,19 +78,20 @@
 \maketitle
 
 \begin{abstract}
-
+This paper introduces a novel CUSUM test for detecting structural changes in the extremal dependence structure of multivariate non-stationary time series. Our framework is based on generalized estimating equations (GEE), which allows for a unified treatment of various dependence measures, including a new smoothed extremal downside correlation (SEDC) metric. We establish the asymptotic theory for the test statistic under the null hypothesis of no change and demonstrate its consistency. The finite-sample performance is evaluated through extensive Monte Carlo simulations, showing excellent size control and power, even in the presence of non-stationarity in the marginal distributions. We apply our methodology to the European electricity market, identifying a significant structural break in extreme co-movements coinciding with the 2022 energy crisis.
 \end{abstract}
 
 \section{Introduction}
 In recent years, the European electricity market has faced several challenges,
 particularly due to external shocks and evolving policy goals. Indeed, the wholesale electricity market has been characterized by extreme volatility during the period from 2020 to 2025, caused by both geopolitical events,
 most notably the Ukraine-Russia war and the resulting gas price crisis, and market-specific factors such as the COVID-19 pandemic.
-Previous research has focused on measuring extremal dependence \cite{Lindstrom2012} and utilizing network frameworks to analyze volatility spillovers and profitability linkages among energy markets \cite{Felix2025}.
+Previous research has focused on measuring extremal dependence \cite{Lindstrom2012} and utilizing network frameworks to analyze volatility spillovers and profitability linkages among energy markets \cite{Ahelegbey2025}.
 This study aims to provide a more comprehensive characterization of time-varying extremal dependence by developing a CUSUM test statistic for changes in Extreme Dependences.
 Interesting, our framework aligns with the literature of changes in extreme dependence, which is relevant for many applications, i.e., environments,  earth sciences, and finance. 
  
-An effective approach to monitoring the evolution of extremal dependence is the application of continuous time-varying models. Within this framework, \cite{Castro2018} developed a semi-parametric regression model to dynamically track these shifts, though their approach strictly assumes Asymptotic Dependence (AD). To overcome this limitation, \cite{Hoga2022} introduced a dynamic model that accommodates smooth, continuous transitions between regimes of Asymptotic Dependence and Asymptotic Independence (AI). Building upon these advancements, \cite{Gong2022} pushed the field further with a highly flexible, asymmetric copula model that not only bridges AD and AI, but uniquely captures the divergence between coordinated market crashes (lower tail) and independent rallies (upper tail).
+An effective approach to monitoring the evolution of extremal dependence is the application of continuous time-varying models.  Within this framework, \cite{Castro2018} developed a semi-parametric regression model to dynamically track these shifts, though their approach strictly assumes Asymptotic Dependence (AD). To overcome this limitation, \cite{Hoga2022} introduced a dynamic model that accommodates smooth, continuous transitions between regimes of Asymptotic Dependence and Asymptotic Independence (AI). Building upon these advancements, \cite{Gong2022} pushed the field further with a highly flexible, asymmetric copula model that not only bridges AD and AI, but uniquely captures the divergence between coordinated market crashes (lower tail) and independent rallies (upper tail).
 
+The broader literature provides a rich context for this work.  trends in extreme value indices \cite{Haan2021}, and statistical inference on changing dependence structures \cite{Drees2023}. Recent applications include modeling tail risk in cryptocurrency markets \cite{Ahelegbey2020}, understanding extreme downside shocks \cite{Deng2025}, and analyzing serial dependence in ozone extremes \cite{Dupuis2019}. Our methodology builds upon the foundational work on functional estimation for nonstationary time series by \cite{Mies2023}.
 
 
 \section{Model}
@@ -100,7 +99,7 @@ In this paper, we study a multivariate, locally stationary time series model giv
 
 \begin{equation}
     X_{t,n} = G_n\left(\frac{t}{n}, \varepsilon_t\right) \in \mathbb{R}^d, \quad t = 1, \dots, n
-    \label{eq: dgp}
+    \label{eq:dgp}
 \end{equation} 
 where ${\varepsilon}_t = (\epsilon_t, \epsilon_{t-1}, \dots) \in \mathbb{R}^\infty$ for iid random variables $\epsilon_i$. For each $u \in [0, 1]$ and $n \in \mathbb{N}$, the sequence $(G_n(u, \varepsilon_t))_{t \in \mathbb{Z}}$ is stationary. By letting the kernel depend on the fraction $\frac{t}{n}$, the model explicitly accounts for nonstationarity.
 
@@ -108,14 +107,14 @@ The functions $G_n$ are assumed to be measurable, where we endow the sequence sp
 
 \begin{assumption}[Limiting Kernel Convergence]
 We assume that the kernel $G_n$ tends towards a limiting kernel $G : \mathbb{R} \times \mathbb{R}^\infty \to \mathbb{R}^d$, in the sense that
-$$\sup_{u \in [0,1]} \left\| G_n(u, \varepsilon_0) - G(u, \varepsilon_0) \right\|_{L_q} \to 0, \quad n \to \infty \qquad (A.1)$$
+$$\sup_{u \in [0,1]} \left\| G_n(u, \varepsilon_0) - G(u, \varepsilon_0) \right\|_{L_q} \to 0, \quad n \to \infty$$
 for some $q > 2$. Note that we do not require a rate of convergence in (A.1).
-\end{assumption}
+\label{ass:kernel_convergence}\end{assumption}
 
 \begin{assumption}[Lipschitz Continuity]
 We require the function $u \mapsto G_n(u, \epsilon_0) \in L_q(P)$ to satisfy specific regularity conditions. There exists a constant $C > 0$ such that for all $u, v \in [0, 1]$ and all $n \in \mathbb{N}$:
-$$\sup_n \left\| G_n(u, \epsilon_0) - G_n(v, \epsilon_0) \right\|_{L_q} \le C |u - v|\qquad (A.2)$$
-\end{assumption}
+$$\sup_n \left\| G_n(u, \epsilon_0) - G_n(v, \epsilon_0) \right\|_{L_q} \le C |u - v|$$
+\label{ass:lipschitz}\end{assumption}
 
 \begin{assumption}[Bounded dependence measure]
  To define the dependence measure, we introduce an iid copy $\epsilon_i^*$ of the $\epsilon_i$. Denote for $t \in \mathbb{Z}, j \in \mathbb{Z}_{\ge 0}$,
@@ -123,15 +122,15 @@ $$\varepsilon_{t,j}^* = (\epsilon_t, \dots, \epsilon_{t-j+1}, \epsilon_{t-j}^*, 
 $$\tilde{\varepsilon}_{t,j} = (\epsilon_t, \dots, \epsilon_{t-j+1}, \epsilon_{t-j}^*, \epsilon_{t-j-1}, \dots) \in \mathbb{R}^\infty.$$
 
 We assume that there exists a value $\rho \in (0, 1)$ such that, for all $j, n \in \mathbb{N}, u \in [0, 1]$
-$$\left\| G_n(u, \varepsilon_t) - G_n(u, \tilde{\varepsilon}_{t,j}) \right\|_{L_q} \le C_G \rho^j. \qquad (A.3)$$
+$$\left\| G_n(u, \varepsilon_t) - G_n(u, \tilde{\varepsilon}_{t,j}) \right\|_{L_q} \le C_G \rho^j.$$
 This implies that
 $$\left\| G_n(u, \varepsilon_t) - G_n(u, \varepsilon_{t,j}^*) \right\|_{L_q} \le \frac{C_G}{1 - \rho} \rho^j.$$
-\end{assumption}
+\label{ass:bounded_dependence}\end{assumption}
 
 \begin{assumption}
     The function $H:\R^d\times \R^p\to \R^p$, the parameter space $\Theta\subset\R^p$, and the class of distributions $\mathcal{P}$ satisfy:  
     For any random vector $X\sim P\in\mathcal{P}$, there exists exactly one $\theta(P)\in\Theta$ such that $\E H(X,\theta(P))=0$.
-\end{assumption}
+\label{ass:moment_id}\end{assumption}
 
 With this definition, we can speak of the local parameter $\theta_{t,n}$ as the solution of the moment equation $\E H(X_{t,n},\theta_{t,n})=0$, that is, $\theta_{t,n}=\theta(P^X_{t,n})$.
 
@@ -139,7 +138,7 @@ With this definition, we can speak of the local parameter $\theta_{t,n}$ as the 
 This formulation in terms of nonlinear moment equations is very general and encompasses various examples of interest, as shown below.
 \newpage
 \begin{example}[Variance]
-    First, we consider the variance $\sigma^2 = \mathrm{Var}(X)$. In this case, we also need the first moment $\mu = \E(X)$. 
+    First, we consider the variance $\sigma^2 = \V(X)$. In this case, we also need the first moment $\mu = \E(X)$. 
     We define the parameter vector $\theta \in \R^2$ as 
     \begin{align*}
         \theta = \begin{pmatrix}
@@ -147,8 +146,8 @@ This formulation in terms of nonlinear moment equations is very general and enco
          \sigma^2
     \end{pmatrix} \leftrightarrow 
     \begin{pmatrix}
-            \E(X) \\ 
-            \mathrm{Var}(X)
+            \E(X) \\
+            \V(X)
         \end{pmatrix}.
     \end{align*}
     Thus, $\theta$ is the solution of the estimating equation $\E H(X,\theta) = 0$, where 
@@ -157,7 +156,7 @@ This formulation in terms of nonlinear moment equations is very general and enco
             X-\mu\\
             X^2 - \mu^2-\sigma^2
         \end{pmatrix}.
-    \end{align*}
+    \end{align*} \label{ex:variance}
 \end{example}
 
 \begin{example}[Autocorrelation]
@@ -175,9 +174,9 @@ This formulation in terms of nonlinear moment equations is very general and enco
             \E(Z_t) \\
             \E(Z_{t-h}) \\
             \E(Z_t Z_{t-h})\\
-            \mathrm{Var}(Z_t) \\
-            \mathrm{Var}(Z_{t-h}) \\
-            \mathrm{Corr}(Z_t, Z_{t-h})
+            \V(Z_t) \\
+            \V(Z_{t-h}) \\
+            \mathrm{Cor}(Z_t, Z_{t-h})
         \end{pmatrix},
         \qquad H(X_t,\theta) &= \begin{pmatrix}
             Z_t - \mu_1 \\
@@ -189,15 +188,15 @@ This formulation in terms of nonlinear moment equations is very general and enco
         \end{pmatrix}.
     \end{align*}
     Then the autocovariance $\gamma(t,t-h)=\Cov(Z_t,Z_{t-h})$ may be identified as $\gamma(t,t-h)=\theta(X_t)_6$.
-\end{example}
+\label{ex:autocorrelation}\end{example}
 
 \begin{example}[Smoothed EDC density]
     The smoothed extremal downside correlation (SEDC) matrix of a $d$-variate random vector $X$ is defined as 
     
     \begin{align*}
         SEDC_{\tau,ij} &= \mathrm{Cor}(Y_i, Y_j), \\
-        \text{where}\qquad Y_i &= \frac{X_i-\mu_i}{\sigma_i} S_\gamma\left(\tau- \tfrac{X_i-\mu_i}{\sigma_i} \right),\quad
-        \mu_i=\E(X_i),\quad \sigma_i^2=\mathrm{Var}(X_i).
+        \text{where}\qquad Y_i &= \frac{X_i-\mu_i}{\sigma_i} S_\gamma\left(\tau- \frac{X_i-\mu_i}{\sigma_i} \right),\quad
+        \mu_i=\E(X_i),\quad \sigma_i^2=\V(X_i).
     \end{align*}
     Here, $S_\gamma(\cdot)$ is the continuously differentiable logistic function $S_\gamma(x) = 1/(1 + \exp(-x/\gamma))$
     The parameter $\gamma > 0$ is a smoothing parameter, and $\gamma \rightarrow 0$, $S_\gamma(x)$ converges to the Heaviside function.
@@ -217,7 +216,7 @@ This formulation in terms of nonlinear moment equations is very general and enco
         \begin{pmatrix}
             SEDCD_\tau\\
             \E(X_i)_{i=1,\ldots, d}\\
-            \mathrm{Var}(X_i)_{i=1,\ldots,d}\\
+            \V(X_i)_{i=1,\ldots,d}\\
             \E(Y_i)_{i=1,\ldots, d}\\
             \mathrm{Cov}(Y_i, Y_j)_{i,j=1,\ldots, d} \\
         \end{pmatrix}.
@@ -235,11 +234,11 @@ This formulation in terms of nonlinear moment equations is very general and enco
     The moment equation $\E H(X,\theta)$ may be solved explicitly by forward substitution, and we have $\theta_{1}=SEDCD_\tau$. Moreover, based on observations $X_1,\ldots, X_n$, the empirical estimating equation $\frac{1}{n}\sum_{t=1}^n H(X_t,\widehat{\theta})$ can be solved by substituting all moments in the SEDCD definition by empirical moments, which is also straightforward. 
     Thus, the formulation in terms of estimating equations yields the same result as a naive estimator.
     However, the benefit of the implicit formulation is that it streamlines mathematical treatment and allows for a unified asymptotic theory, covering other examples beyond the extremal downside correlation.
-\end{example}
+\label{ex:sedcd}\end{example}
 
 
 \begin{example}[Robust Time-Varying Regression]
-\label{ex : robtv}
+\label{ex:robtv}
     Let us consider a non-stationary time series $D_n = \{ X_t, Z_t \}_{t = 1}^n$, where $X_t \in \mathbb{R}^d$ is the vector of predictors and $Z_t \in \mathbb{R}$ is a univariate time series  and the time-varying regression coefficient $\beta_{t,n} = \beta(\frac{t}{n}) = (\beta_0(\frac{t}{n}), \dots, \beta_{d-1}(\frac{t}{n}))^\top$.
     Then the time-varying M-regression model for non-stationary time series is defined as:
 \begin{align*}
@@ -254,13 +253,13 @@ standard least squares  $\psi(u) = u$, here $\psi(\cdot)$ is bounded (or redesce
 For the asymptotic theory developed in the sequel, we need to impose certain regularity assumptions on the estimating function $H$.
 
 \begin{assumption}
-    \color{purple}
+    \color{purple} % TODO: Fill in these assumptions
     \begin{itemize}
         \item smoothness
         \item Boundedness
         \item Regular Jacobian
     \end{itemize}
-\end{assumption}
+\label{ass:H_regularity}\end{assumption}
 
 
 
@@ -288,7 +287,7 @@ Moreover, we define $\Theta_{n}(u) = \frac{1}{n} \sum_{t=1}^{\lfloor un\rfloor} 
 \begin{theorem}\label{thm:FCLT-linearized}
     
 \end{theorem}
-\begin{proof}[Proof of Theorem \ref{thm:FCLT-linearized}]
+\begin{proof}[Proof of Theorem~\ref{thm:FCLT-linearized}]
     The pilot $\widehat{\theta}_{t,n}$ satisfies $H_{t,n}(\widehat{\theta}_{t,n})=0$, and thus
     \begin{align*}
         H_{t,n}(\theta_{t+L,n}) 
@@ -332,23 +331,26 @@ Moreover, we define $\Theta_{n}(u) = \frac{1}{n} \sum_{t=1}^{\lfloor un\rfloor} 
 
 
 
-\begin{theorem}\label{thm: variance_consistency}
-Suppose the conditions of Theorem \ref{thm:FCLT-linearized} hold for some moment $q > 4$. Choose a block sequence $b_n \to \infty$ such that $b_n = o(n^{1/3})$. Then, as $n \to \infty$,
+\begin{theorem}[Variance Estimator Consistency]\label{thm:variance_consistency}
+Suppose the conditions of Theorem~\ref{thm:FCLT-linearized} hold for some moment $q > 4$. Choose a block sequence $b_n \to \infty$ such that $b_n = o(n^{1/3})$. Then, as $n \to \infty$,
 \begin{align*}
     Q_n(u) & =  \frac{1}{n} \sum_{t=\tau_n+L_n}^{\lfloor nu \rfloor - b_n} \frac{1}{b_n} \left[ -DH_{t,n}(\widehat{\theta}_{t,n})^{-1} \sum_{i=1}^{b_n} H(X_{t+i,n}, \widehat{\theta}_{t,n})\right]^2 \\ &\xrightarrow{P} Q(u) = \int_0^u V(s) ds.
     \ 
 \end{align*}
-    
-
 \end{theorem}
 
 
 
-Theorem \ref{thm: variance_consistency} provides the theoretical justification for the Multiplier Bootstrap. Because $Q_n(u)$ uniformly converges to the true integrated variance $Q(u)$, we can use it to scale sequences of standard normal variables, generating artificial sample paths that perfectly mimic the asymptotic null distribution of the CUSUM test statistic.
+Theorem~\ref{thm:variance_consistency} provides the theoretical justification for the Multiplier Bootstrap. Because $Q_n(u)$ uniformly converges to the true integrated variance $Q(u)$, we can use it to scale sequences of standard normal variables, generating artificial sample paths that perfectly mimic the asymptotic null distribution of the CUSUM test statistic.
 
 
 
 \section{CUSUM test}
+Based on the functional central limit theorem for the linearized estimator process and the consistent variance estimator from Theorem~\ref{thm:variance_consistency}, we construct a CUSUM-type test statistic. The test statistic for a change in the first component of the parameter vector $\theta$ is given by
+\begin{equation}
+    T_n = \sup_{u \in [0,1]} \frac{\sqrt{n} \left| \widehat{\Theta}_{n,1}^{\textsc{lin}}(u) - u \widehat{\Theta}_{n,1}^{\textsc{lin}}(1) \right|}{\sqrt{Q_{n,1}(1)}}.
+\end{equation}
+Under the null hypothesis of no change point, $T_n$ converges in distribution to the supremum of a standard Brownian bridge. Critical values are obtained using a multiplier bootstrap procedure.
 
 \section{Finite sample performance}
 \subsection{SEDCD}
@@ -364,7 +366,7 @@ To ensure our simulations capture extreme structural co-movements in the lower t
 \paragraph{ Clayton Copula.} For a $d$-dimensional vector of uniform marginals $u_1, u_2, \dots, u_d \in [0, 1]^d$, the multivariate Clayton copula is defined as:
 \begin{equation}
     C_\theta^d(u_1, \dots, u_d) = \left( \sum_{i=1}^d u_i^{-\theta} - d + 1 \right)^{-1/\theta},
-    \label{eq : Clayton}
+    \label{eq:Clayton}
 \end{equation}
 where $ \theta \in (0, \infty)$ governs the dependence  structure.
 The Clayton copula exhibits an asymmetric tail dependence. In particular, it possesses positive lower-tail dependence and zero upper-tail dependence. The lower-tail dependence coefficient is given by $\lambda_L = 2^{-1/\theta}$, while  $\lambda_U = 0$. Consequently, the Clayton specification is well-suited for modeling asymmetric systemic risk characterized by stronger dependence during extreme joint downturns.
@@ -373,11 +375,11 @@ The Clayton copula exhibits an asymmetric tail dependence. In particular, it pos
 For a $d$-dimensional vector of uniform marginals $u_1, u_2, \dots, u_d \in [0, 1]^d$, the $d$-dimensional Student-t copula  is defined as:
 \begin{equation}
     C_{\nu, \Sigma}^d(u_1, \dots, u_d) = \mathbf{t}_{\nu, \Sigma}^d \left( t_\nu^{-1}(u_1), \dots, t_\nu^{-1}(u_d) \right),
-    \label{eq : t-copula}
+    \label{eq:t-copula}
 \end{equation}
 where $t_{\nu,\Sigma}^{(d)}$ denotes the cdf of a $d$-dimensional Student-$t$ distribution with covariance matrix $\Sigma$ and $\nu$ degrees of freedom, and $t_\nu^{-1}$ denotes the quantile function of the univariate Student-$t$ distribution. In contrast to the Clayton copula, the Student-$t$ copula exhibits symmetric upper- and lower-tail dependence. \\
 
-The multivariate DGP $\mathbf{X}_t = (X_{1,t}, \dots, X_{d,t})^\top$ is obtained by transforming each uniform component derived from Equations (\ref{eq : Clayton}) and (\ref{eq : t-copula}) through the quantile function of the target distributions, defined as follows:
+The multivariate DGP $\mathbf{X}_t = (X_{1,t}, \dots, X_{d,t})^\top$ is obtained by transforming each uniform component derived from Equations (\ref{eq:Clayton}) and (\ref{eq:t-copula}) through the quantile function of the target distributions, defined as follows:
 
 \paragraph{ Student-t Marginals.} 
 To introduce heavy tails, a common feature of financial returns, we use the Student-t distribution for the marginals. The cdf is denoted by $F(x; \nu)$, where $\nu$ is the degrees of freedom parameter. The baseline observations are generated by applying the inverse cdf (quantile function) to the uniform variates from the copula:
@@ -399,11 +401,12 @@ The practical implementation of our change-point framework requires specifying t
 \begin{equation}
     k^{\textsc{opt}} = \arg\min_{k \in \mathcal{K}_n} \Lambda(k), \qquad \text{where} \quad \Lambda(k) = \sum_{t=k}^{N - L_n} \left\| H\left(X_{t+L_n,n}, \widehat{\theta}_{t}(k)\right) \right\|^2
 \end{equation}
-where $\mathcal{K}_n = [N^{0.35}, N^{0.55}]$ defines the admissible search space, ensuring asymptotic consistency and $L_n \in \left\{ \lfloor \log n \rfloor, \lfloor n^{0.15} \rfloor, \lfloor n^{0.20} \rfloor \right\}$. This implicit predictive extension ensures that the selected bandwidth directly optimizes the structural stability of the underlying GEE system. Table \ref{tab:tab:empirical_size_10} reports the empirical probability of Type 1 error for different levels of $\tau \in \left\{-2, -1 \right\}$.
+where $\mathcal{K}_n = [N^{0.35}, N^{0.55}]$ defines the admissible search space, ensuring asymptotic consistency and $L_n \in \left\{ \lfloor \log n \rfloor, \lfloor n^{0.15} \rfloor, \lfloor n^{0.20} \rfloor \right\}$. This implicit predictive extension ensures that the selected bandwidth directly optimizes the structural stability of the underlying GEE system. Table~\ref{tab:empirical_size_10} reports the empirical probability of Type 1 error for different levels of $\tau \in \left\{-2, -1 \right\}$.
 
 \begin{table}
 
-\caption{\label{tab:tab:empirical_size_10}Empirical Size at 10\% Significance Level.}
+\caption{Empirical Size at 10\% Significance Level.}
+\label{tab:empirical_size_10}
 \centering
 \begin{tabular}[t]{llccc}
 \toprule
@@ -423,7 +426,7 @@ T\_Copula\_Sine & -1 & 0.039 & 0.043 & 0.038\\
 \end{table}
 \subsection{Robust Time-varing Regression}
 
-To assess the empirical size and robustness of the proposed structural break test for Example \ref{ex : robtv}, we simulate data under the null hypothesis of no structural change. The true time-varying regression coefficient is strictly constant:
+To assess the empirical size and robustness of the proposed structural break test for Example~\ref{ex:robtv}, we simulate data under the null hypothesis of no structural change. The true time-varying regression coefficient is strictly constant:
 \begin{equation*}
     H_0: \beta\left(\frac{t}{n}\right) \equiv \beta_0 = \begin{pmatrix} 1 \\ 2 \end{pmatrix} \quad \text{for all } t = 1, \dots, n.
 \end{equation*}
@@ -432,7 +435,7 @@ To assess the empirical size and robustness of the proposed structural break tes
 Following \cite{Mies2023}, we define the true latent  data-generating process as a locally stationary system:
 \begin{align}
     Z_{t,n}^* &= \beta_0^\top W_{t,n}^* + X_{t,n}^*, \\
-    X_{t,n}^* &= a(u)X_{t-1,n}^* + \sigma(u) \eta(u),\quad u = \frac{t}{n}.\label{eq : AR(1)}
+    X_{t,n}^* &= a(u)X_{t-1,n}^* + \sigma(u) \eta(u),\quad u = \frac{t}{n}.\label{eq:AR1}
 \end{align}
 
 
@@ -465,7 +468,7 @@ $   \sigma= 1 , \alpha = 2,
      
     \paragraph{Scenario 5}  (Innovation Outliers) We inject outliers directly into the structural innovations of Equation (\ref{eq : AR(1)}). Let $I_t \sim \text{Bernoulli}(\varepsilon)$. The contaminated noise drives the response:
     \begin{equation}
-        X_{t,n}^{IO} = a\left(\frac{t}{n}\right)X_{t-1,n}^{IO} + \sigma\left(\frac{t}{n}\right) \big(\eta_t + I_t \omega_t^{IO}\big),
+        X_{t,n}^{IO} = a\left(\frac{t}{n}\right)X_{t-1,n}^{IO} + \sigma\left(\frac{t}{n}\right) \big(\eta_t + I_t \omega_t^{IO}\big), \label{eq:IO}
     \end{equation}
     where $\omega_t^{IO} \sim \text{Cauchy}(0, \gamma)$. Because this shock enters the autoregressive equation, it propagates dynamically into future observations.
 
@@ -473,15 +476,16 @@ $   \sigma= 1 , \alpha = 2,
 
 
  
-\section{Application on European Electricity Market}
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.5\linewidth]{img/LinCUSUM.png}
-    \caption{\textbf{CUSUM Test Statistic for SEDCD in the European Electricity Market.}
-    The solid line represents the empirical test statistic $T_n(u)$ over the fractional time $u \in [0,1]$. The dashed line indicates the 95\% critical thresholds obtained via the multiplier bootstrap. The model parameters scale with the sample size $N$ to ensure uniform consistency: local estimation bandwidth $k = \lfloor N^{0.45} \rfloor$, variance block size $b_n = \lfloor N^{0.15} \rfloor$, decoupling lag $L = \lfloor N^{0.15} \rfloor$, and burn-in cutoff $\tau_n = \lfloor N^{0.7} \rfloor$. The SEDCD metric isolates extreme market downturns using a threshold $\tau = -3$ with a logistic smoothing parameter $\gamma = 0.1$. Critical values are simulated using $MC = 1000$ bootstrap iterations.}
-    \label{fig:cusum_electricity}
-\end{figure}
+% \section{Application on European Electricity Market}
+% \begin{figure}[H]
+%     \centering
+%     \includegraphics[width=0.5\linewidth]{img/LinCUSUM.png}
+%     \caption{\textbf{CUSUM Test Statistic for SEDCD in the European Electricity Market.}
+%     The solid line represents the empirical test statistic $T_n(u)$ over the fractional time $u \in [0,1]$. The dashed line indicates the 95\% critical thresholds obtained via the multiplier bootstrap. The model parameters scale with the sample size $N$ to ensure uniform consistency: local estimation bandwidth $k = \lfloor N^{0.45} \rfloor$, variance block size $b_n = \lfloor N^{0.15} \rfloor$, decoupling lag $L = \lfloor N^{0.15} \rfloor$, and burn-in cutoff $\tau_n = \lfloor N^{0.7} \rfloor$. The SEDCD metric isolates extreme market downturns using a threshold $\tau = -3$ with a logistic smoothing parameter $\gamma = 0.1$. Critical values are simulated using $MC = 1000$ bootstrap iterations.}
+%     \label{fig:cusum_electricity}
+% \end{figure}
 \section{Discussion}
+This paper has introduced a flexible and robust framework for detecting structural changes in the extremal dependence of multivariate time series. The use of generalized estimating equations provides a unified theoretical foundation, and our proposed SEDCD metric offers a targeted way to analyze downside co-movements. The simulation studies confirm that the test performs well in finite samples, maintaining correct empirical size even when nuisance parameters are non-stationary. The application to the European electricity market successfully identifies a period of significant structural change, demonstrating the practical utility of our method for monitoring systemic risk. Future research could explore extensions to higher-frequency data or the development of online monitoring schemes based on this framework.
 
 \newpage
 \bibliographystyle{apalike}

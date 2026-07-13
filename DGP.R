@@ -15,7 +15,7 @@ library(evd)# for frechet marginals
 # t-Copula
 # ==========================================
 
-Gen.from.t <- function(n = 2000, d = 5, rho = 0.5, nu = 5, margins_df = 5, time_varying = FALSE) {
+Gen.from.t <- function(n = 2000, d = 5, rho = 0, nu = 3, margins_df = 3, time_varying = FALSE) {
   
   # 1. Define the t-copula 
   t_cop <- tCopula(param = rho, dim = d, df = nu, dispstr = "ex")
@@ -36,7 +36,7 @@ Gen.from.t <- function(n = 2000, d = 5, rho = 0.5, nu = 5, margins_df = 5, time_
 # Clayton Copula
 # ==========================================
 
-Gen.from.clayton <- function(n = 2000, d = 5, theta = 2, margins_df = 5, time_varying = FALSE) {
+Gen.from.clayton <- function(n = 2000, d = 5, theta = 2, margins_df = 3, time_varying = FALSE) {
   
   # Define the Clayton blueprint
   clayton_cop <- claytonCopula(param = theta, dim = d)
@@ -57,7 +57,7 @@ Gen.from.clayton <- function(n = 2000, d = 5, theta = 2, margins_df = 5, time_va
 # ==========================================
 # Frank Copula 
 # ==========================================
-Gen.from.frank <- function(n = 2000, d = 5, theta = 5, margins_df = 5, time_varying = FALSE) {
+Gen.from.frank <- function(n = 2000, d = 5, theta = 5, margins_df = 3, time_varying = FALSE) {
   
   # Define the Frank blueprint
   frank_cop <- frankCopula(param = theta, dim = d)

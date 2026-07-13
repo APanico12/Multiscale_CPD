@@ -44,7 +44,7 @@ empirical_size_summary <- sim_results_df %>%
   group_by(level, dgp_name, n_values, tau, L_n_type) %>%
   summarise(
     # Correct calculation: mean of a logical vector gives the proportion of TRUEs.
-    `empirical_size_10%` = mean(stat < 0.10),
+    `empirical_size_10%` = mean(stat < 0.1 ),
     .groups = 'drop'
   ) %>%
   # Rename columns for clarity in the output table
@@ -66,8 +66,11 @@ cat("\n\n--- Generating LaTeX table for the paper ---\n")
 
 # Reshape the data to a wide format for the table
 # Rows: DGP and tau
-# Columns: Sample size (n)
+# Columns: Sample size (n). We filter for a specific L_n to avoid duplicates.
 latex_table_data <- empirical_size_summary %>%
+  # The warning occurs because there are multiple L_n types for each (DGP, tau, n) combo.
+  # We select one L_n type to display in the table, as is common for paper summaries.
+  filter(`L_n` == "0.25(log(n))^2") %>%
   select(DGP, tau, n, `empirical_size_10%`) %>% # Select only necessary columns
   pivot_wider(names_from = n, values_from = `empirical_size_10%`)
 
@@ -78,11 +81,51 @@ latex_table <- kable(latex_table_data,
                      caption = "Empirical Size at 10% Significance Level.",
                      label = "tab:empirical_size_10",
                      digits = 3,
-                     align = 'llccc') # Align columns: left, left, center, center, center
+                     # Align columns: DGP (l), tau (l), n=2000 (c)
+                     align = 'llc')
 
 cat(latex_table)
 
 cat("\n\nLaTeX table code generated. You can copy and paste it into your paper.tex file.\n")
 
+# ─────────────────────────────────────────────
+# 5. PLOT P-VALUE DISTRIBUTIONS
+# ─────────────────────────────────────────────
+
 source("Plot_functions.R")
+
+# Ensure the output directory exists
+img_dir <- "paper/img"
+if (!dir.exists(img_dir)) {
+  dir.create(img_dir, recursive = TRUE)
+}
+
+# --- Generate the main multi-panel histogram plot ---
+cat("\n\n--- Generating main p-value distribution plot ---\n")
+pdf(file = file.path(img_dir, "pvalue_hist_main.pdf"), width = 10, height = 12)
 plot_pvalue_histograms_fabian(sim_results_df)
+dev.off()
+cat(sprintf("Saved main p-value histogram grid to '%s'\n", file.path(img_dir, "pvalue_hist_main.pdf")))
+
+
+# --- Generate a plot for a single, specific combination ---
+cat("\n\n--- Generating p-value distribution plot for a single combination ---\n")
+
+# Define the specific combination you want to plot
+single_n <- 2000
+single_dgp <- "Clayton"
+single_tau <- -2
+single_Ln <- "0.25(log(n))^2"
+
+# Save the single plot to a PDF
+pdf(file = file.path(img_dir, "pvalue_hist_single.pdf"), width = 6, height = 6)
+plot_pvalue_histograms_fabian(
+  sim_results_df,
+  n_to_plot = single_n,
+  dgp_to_plot = single_dgp,
+  tau_to_plot = single_tau,
+  Ln_to_plot = single_Ln
+)
+dev.off()
+
+cat(sprintf("Saved single p-value histogram to '%s'\n", file.path(img_dir, "pvalue_hist_single.pdf")))

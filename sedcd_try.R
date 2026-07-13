@@ -161,7 +161,7 @@ var.est.sedcd <- function(x, teta, block = 1, lag = 1, cutoff = 1, k, tau = -3, 
     q_sq[t, ] <- as.vector(q_par^2)
   }
   
-  # 6. Calculate the integrated variance estimate Q_n(u)
+  # Calculate the integrated variance estimate Q_n(u)
   q_scaled <- q_sq / block
   Q.est_matrix <- apply(q_scaled, 2, cumsum) / N
   
@@ -169,7 +169,6 @@ var.est.sedcd <- function(x, teta, block = 1, lag = 1, cutoff = 1, k, tau = -3, 
   return(Q.est_matrix[, 1])
 
   }
-
 
 CUSUM.sedcd <- function(x, teta = NULL, lag = 1, block = 1, cutoff = 1, k, tau = -3, gamma = 1.0, MC = 1000, plotting = FALSE){
 check.cutoff <- k+lag+block
@@ -201,7 +200,7 @@ for(i in 1:MC){
     abline(h=-q10, lty=2)
     abline(h=q5,   lty=3)
     abline(h=-q5,  lty=3)
-    legend("bottomleft", c("10% threshold", "5% threshold"), lty=c(2,3))
+    #legend("bottomleft", c("10% threshold", "5% threshold"), lty=c(2,3))
   }
   
   p_value <- mean(Z.mc > Z)
@@ -217,13 +216,12 @@ for(i in 1:MC){
 
 # source("DGP.R")
 # set.seed(123)
-# alpha_param = 3
 
-# X = Gen.from.clayton(n =1000, margins_df = 5)
-# X = rbind(X,Gen.from.clayton(n =1000, theta = 3, margins_df = 5))
+# X = Gen.from.t()
+# #X = rbind(X,Gen.from.t( n = 1000, rho = 0.8, margins_df = 3,time_varying = TRUE))
 # plot(X[1:1000,1],X[1:1000,2])
 # plot(X[1000:2000,1],X[1000:2000,2])
-
+# plot.zoo(X)
 # n = nrow(X)
 # d =ncol(X)
 # k = floor(n^0.75)

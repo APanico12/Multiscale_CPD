@@ -155,103 +155,297 @@ plot_cusum_test <- function(u_seq,
 # ── 7. plot_stat_histograms_by_level ──────────────────────────────────────────
 plot_pvalue_histograms_fabian <- function(sim_results,
                                           main_title_prefix = "P-value Distribution",
-                                          n_breaks = 10) {
+                                          n_breaks = 10,
+                                          n_to_plot = NULL,
+                                          dgp_to_plot = NULL,
+                                          tau_to_plot = NULL,
+                                          Ln_to_plot = NULL) {
   # Save original graphical parameters to restore them on exit
   op <- par(no.readonly = TRUE)
   on.exit(par(op))
 
-  # Identify all unique combinations of non-grid parameters (tau, L_n_type)
-  param_combos <- sim_results %>%
-    select(tau, L_n_type) %>%
-    distinct()
+  # If all parameters for a single plot are specified, plot only that one.
+  is_single_plot <- !is.null(n_to_plot) && !is.null(dgp_to_plot) &&
+                    !is.null(tau_to_plot) && !is.null(Ln_to_plot)
 
-  # Loop over each parameter combination to create a separate plot for each
-  for (i in 1:nrow(param_combos)) {
-    current_tau <- param_combos$tau[i]
-    current_Ln <- param_combos$L_n_type[i]
-
-    # Filter the main dataframe for the current combination
+  if (is_single_plot) {
     sub_df <- sim_results %>%
-      filter(tau == current_tau, L_n_type == current_Ln)
+      filter(n_values == n_to_plot, dgp_name == dgp_to_plot,
+             tau == tau_to_plot, L_n_type == Ln_to_plot)
+    
+    if (nrow(sub_df) == 0) {
+      warning("No data for the specified single combination.")
+      return(invisible(NULL))
+    }
+    
+    # Setup for a single plot
+    par(pty = "s", mar = c(4.5, 4.5, 3, 1))
+    breaks_fixed <- seq(0, 1, length.out = n_breaks + 1)
+    pvals <- sub_df$stat[!is.na(sub_df$stat)]
+    M_obs <- length(pvals)
+    h <- hist(pvals, breaks = breaks_fixed, plot = FALSE)
+    h$counts <- h$counts / sum(h$counts)
+    rej_rate <- mean(pvals <= 0.05)
+    
+    plot(h, freq = TRUE, col = adjustcolor(.COL_PROCESS, 0.70), border = "white",
+         xlim = c(0, 1), ylim = c(0, max(max(h$counts), 1/n_breaks) * 1.4),
+         main = sprintf("%s: n=%d, tau=%s, Ln=%s", dgp_to_plot, n_to_plot, tau_to_plot, Ln_to_plot),
+         xlab = "Bootstrap p-value", ylab = "Relative frequency", axes = FALSE)
+    axis(1, at = seq(0, 1, by = 0.2)); axis(2, las = 1); box()
+    abline(h = 1 / n_breaks, col = .COL_MEAN, lty = .LTY_MEAN, lwd = .LWD_REF)
+    legend("topleft", legend = c(sprintf("Rate (5%%) = %.3f", rej_rate), sprintf("M = %d", M_obs)),
+           col = c(.COL_MEAN, NA), lty = c(.LTY_MEAN, NA), lwd = c(.LWD_REF, NA),
+           bty = "n", cex = 0.8, inset = c(-0.02, 0))
+    return(invisible(NULL))
+  }
 
-    # Get the DGPs and Sample sizes in a fixed order for this subset
-    dgp_names <- sort(unique(sub_df$dgp_name))
-    n_vals    <- sort(unique(sub_df$n_values))
+  # --- Multi-panel plot logic ---
+  n_vals <- sort(unique(sim_results$n_values))
 
-    # Vertical DGPs (rows), Horizontal n values (columns)
-    rows <- length(dgp_names)
-    cols <- length(n_vals)
+  # Loop over each sample size to create a separate plot for each
+  for (n_val in n_vals) {
+    
+    sub_df_n <- sim_results %>% filter(n_values == n_val)
+    
+    dgp_names <- sort(unique(sub_df_n$dgp_name))
+    tau_vals  <- sort(unique(sub_df_n$tau))
+    ln_types  <- sort(unique(sub_df_n$L_n_type))
+    
+    # Rows: DGP x tau, Columns: L_n_type
+    rows <- length(dgp_names) * length(tau_vals)
+    cols <- length(ln_types)
 
-    # Setup multi-panel layout for the current plot
-    par(
-      mfrow = c(rows, cols),
-      pty   = "s",               # Keep panels square
-      oma   = c(2, 0, 4.5, 0),   # Outer margin for main title
-      mar   = c(3.5, 3.5, 2, 1)  # Tighter margins
-    )
+    par(mfrow = c(rows, cols), pty = "s", oma = c(4, 6, 5, 1), mar = c(2, 2, 2, 1))
 
     breaks_fixed <- seq(0, 1, length.out = n_breaks + 1)
 
-    # Loop over DGPs and sample sizes to create each panel
+    # Loop to create each panel
     for (dgp in dgp_names) {
-      for (n_val in n_vals) {
-        
-        pvals <- sub_df$stat[sub_df$dgp_name == dgp & sub_df$n_values == n_val]
-        pvals <- pvals[!is.na(pvals)]
-        
-        M_obs <- length(pvals)
-        
-        if (M_obs == 0) {
-           plot.new()
-           title(main = sprintf("%s | n = %d", dgp, n_val))
-           text(0.5, 0.5, "No data")
-           next
+      for (tau_val in tau_vals) {
+        for (ln_type in ln_types) {
+          
+          pvals <- sub_df_n$stat[sub_df_n$dgp_name == dgp & sub_df_n$tau == tau_val & sub_df_n$L_n_type == ln_type]
+          pvals <- pvals[!is.na(pvals)]
+          
+          M_obs <- length(pvals)
+          
+          if (M_obs == 0) {
+            plot.new(); box(); text(0.5, 0.5, "No data", cex=0.8); next
+          }
+          
+          h <- hist(pvals, breaks = breaks_fixed, plot = FALSE)
+          h$counts <- h$counts / sum(h$counts)
+          
+          plot(h, freq = TRUE, col = adjustcolor(.COL_PROCESS, 0.70), border = "white",
+               xlim = c(0, 1), ylim = c(0, max(max(h$counts), 1/n_breaks) * 1.4),
+               main = "", xlab = "", ylab = "", axes = FALSE)
+          
+          axis(1, at = seq(0, 1, by = 0.5), cex.axis = 0.7, mgp = c(3, 0.1, 0))
+          axis(2, las = 1, cex.axis = 0.7, mgp = c(3, 0.4, 0))
+          box()
+          abline(h = 1 / n_breaks, col = .COL_MEAN, lty = .LTY_MEAN, lwd = .LWD_REF)
+          
+          # Add column titles (L_n_type) to the top row of plots
+          if (dgp == dgp_names[1] && tau_val == tau_vals[1]) {
+            mtext(ln_type, side = 3, line = 0.5, cex = 0.8)
+          }
+          # Add row titles (DGP, tau) to the first column of plots
+          if (ln_type == ln_types[1]) {
+            mtext(paste(dgp, ", tau=", tau_val, sep=""), side = 2, line = 3, cex = 0.8, las = 1)
+          }
         }
-        
-        h <- hist(pvals, breaks = breaks_fixed, plot = FALSE)
-        h$counts <- h$counts / sum(h$counts) # Convert to relative frequency
-        
-        rej_rate <- mean(pvals <= 0.05)
-        
-        plot(h,
-           freq    = TRUE,
-           col     = adjustcolor(.COL_PROCESS, 0.70),
-           border  = "white",
-           xlim    = c(0, 1),
-           ylim    = c(0, max(max(h$counts), 1/n_breaks) * 1.4),
-           main    = sprintf("%s | n = %d", dgp, n_val),
-           xlab    = "Bootstrap p-value",
-           ylab    = "Relative frequency",
-           axes    = FALSE)
-      
-      axis(1, at = seq(0, 1, by = 0.2))
-      axis(2, las = 1)
-      box()
-      
-      abline(h   = 1 / n_breaks,
-             col = .COL_MEAN,
-             lty = .LTY_MEAN,
-             lwd = .LWD_REF)
-      
-      legend("topleft", 
-             legend = c(sprintf("Rate (5%%) = %.3f", rej_rate),
-                        sprintf("M = %d", M_obs)),
-             col    = c(.COL_MEAN, NA),
-             lty    = c(.LTY_MEAN, NA),
-             lwd    = c(.LWD_REF, NA),
-             bty    = "n",
-             cex    = 0.45,            
-             inset  = c(-0.02, 0))
       }
     }
 
-    # Construct and add a dynamic main title for the entire plot
-    main_title <- sprintf(
-      "%s (Tau = %s, Ln = %s)",
-      main_title_prefix,
-      current_tau,
-      current_Ln
-    )
-    mtext(main_title, outer = TRUE, font = 2, cex = 0.65, col = "grey10")
+    mtext(paste(main_title_prefix, "| n =", n_val), outer = TRUE, font = 2, cex = 1.2, col = "grey10")
+    mtext("Bootstrap p-value", side = 1, outer = TRUE, line = 2.5, cex = 0.9)
+    mtext("Relative Frequency", side = 2, outer = TRUE, line = 3.5, cex = 0.9, las = 0)
   }
+}
+
+
+# ── 8. plot_prices_and_returns ────────────────────────────────────────────────
+#' Plot Time Series and Returns
+#'
+#' Creates a multi-panel plot showing the time series of prices and their
+#' corresponding returns for multiple assets. The layout will be N x 2, where N
+#' is the number of assets, with prices on the left and returns on the right.
+#'
+#' @param df A data frame containing the time series data. Must have a date
+#'   column and one or more numeric price columns.
+#' @param date_col_name The name of the column containing dates or date-time
+#'   objects.
+#' @param main_title The main title for the entire plot grid.
+plot_prices_and_returns <- function(df, date_col_name = "Date") {
+
+  op <- par(no.readonly = TRUE)
+  on.exit(par(op))
+  
+  .set_theme() # Apply consistent theme
+
+  price_cols <- setdiff(names(df), date_col_name)
+  n_assets <- length(price_cols)
+
+  if (n_assets == 0) {
+    warning("No price columns found to plot.")
+    return(invisible(NULL))
+  }
+
+  # Calculate simple returns (price changes): P_t - P_{t-1}
+  # This is used because electricity prices can be negative, making log returns invalid.
+  # This also matches the analysis in Application_new.R which uses diff(price_matrix).
+  returns_df <- as.data.frame(lapply(df[price_cols], function(x) c(NA, diff(x))))
+  names(returns_df) <- paste0("ret_", price_cols)
+
+  dates <- df[[date_col_name]]
+  # Ensure the date column is a Date object for correct plotting on the x-axis
+  if (!inherits(dates, c("Date", "POSIXt"))) {
+    dates <- as.Date(dates)
+  }
+
+  # Generate tick locations at 3-month intervals
+  tick_locations <- seq(from = min(dates, na.rm = TRUE), to = max(dates, na.rm = TRUE), by = "3 months")
+
+  # Adjust margins for a compact layout with no outer titles or y-axis labels.
+  par(
+    mfrow = c(n_assets, 2),
+    oma   = c(2, 2, 2, 1),        # Outer margins for spacing
+    mar   = c(3.0, 3.5, 2.5, 1.0), # c(bottom, left, top, right)
+    # Match font sizes from plot_return_correlations for consistency
+    cex.main  = 0.75,
+    cex.axis  = 0.75,
+    # Pull axis labels closer to the plot, matching other functions
+    mgp       = c(2.2, 0.7, 0)
+  )
+
+  for (asset in price_cols) {
+    ret_col <- paste0("ret_", asset)
+
+    # Plot Price Time Series
+    plot(dates, df[[asset]], type = 'l', col = .COL_PROCESS, lwd = .LWD_MAIN,
+         xlab = "", ylab = "", main = paste(asset, "Prices"), xaxt = "n")
+    axis.Date(1, at = tick_locations, format = "%b-%y")
+
+    # Plot Returns Time Series
+    plot(dates, returns_df[[ret_col]], type = 'l', col = .COL_PROCESS, lwd = .LWD_MAIN,
+         xlab = "", ylab = "", main = paste(asset, "Returns"), xaxt = "n")
+    axis.Date(1, at = tick_locations, format = "%b-%y")
+    abline(h = 0, col = .COL_MEAN, lty = .LTY_MEAN, lwd = .LWD_REF)
+  }
+
+}
+
+
+
+# ── 9. plot_return_correlations ───────────────────────────────────────────────
+#' Create a Pairs Plot of Asset Returns Colored by Date
+#'
+#' This function generates a scatterplot matrix (pairs plot) for multivariate time
+#' series data (e.g., standardized residuals) using base R graphics. It is
+#' designed to visualize how correlations between pairs of assets change over
+#' time.
+#'
+#' @param df A dataframe where one column is the Date and subsequent columns are returns.
+#' @param date_col_name A string specifying the name of the date column.
+#' @param point_alpha Numeric; controls the transparency of the scatter points (0 to 1).
+plot_return_correlations <- function(df, date_col_name = "Date", point_alpha = 0.4) {
+
+  # --- 1. Setup plotting environment ---
+  op <- par(no.readonly = TRUE)
+  on.exit(par(op))
+
+  # --- 2. Prepare data and colors ---
+  if (!inherits(df[[date_col_name]], c("Date", "POSIXt"))) {
+    df[[date_col_name]] <- as.Date(df[[date_col_name]])
+  }
+  dates <- df[[date_col_name]]
+  numeric_cols <- setdiff(names(df), date_col_name)
+  n_assets <- length(numeric_cols)
+
+  if (n_assets < 2) {
+    warning("Need at least two numeric columns to create a pairs plot.")
+    return(invisible(NULL))
+  }
+  
+  # Get all unique pairs of countries
+  country_pairs <- combn(numeric_cols, 2, simplify = FALSE)
+  n_plots <- length(country_pairs)
+  n_cols <- 5
+  n_rows <- 3 # We have 15 pairs from 6 countries
+
+  # Create a color gradient based on date
+  date_numeric <- as.numeric(dates)
+  date_norm <- (date_numeric - min(date_numeric, na.rm = TRUE)) /
+               (max(date_numeric, na.rm = TRUE) - min(date_numeric, na.rm = TRUE))
+
+  col_ramp <- colorRampPalette(c("white", .COL_PROCESS)) # White to Blue
+  gradient_colors <- col_ramp(100)
+  point_colors <- gradient_colors[floor(date_norm * 99) + 1]
+  point_colors_alpha <- adjustcolor(point_colors, alpha.f = point_alpha)
+
+  # --- 3. Setup multi-panel layout with space for a legend ---
+  # Create a layout with 3x5 for plots and a row at the bottom for the legend
+  layout_matrix <- matrix(c(1:n_plots, rep(n_plots + 1, n_cols)), nrow = n_rows + 1, ncol = n_cols, byrow = TRUE)
+  # Increase relative height of the legend panel for better readability
+  layout(layout_matrix, heights = c(rep(1, n_rows), 0.4))
+
+  # Set graphical parameters for the scatterplots
+  par(
+    # c(bottom, left, top, right). Increased left margin for y-label visibility
+    mar       = c(3.0, 3, 1, 1.0),
+    family    = .FONT_FAMILY,
+    # Use consistent and readable font sizes for axes and labels
+    cex.lab   = 0.75,
+    cex.axis  = 0.75,
+    col.axis  = .COL_AXIS,
+    col.lab   = .COL_AXIS,
+    tcl       = -0.28,
+    mgp       = c(2.2, 0.7, 0), # Adjust label positions for readability
+    bty       = "o",
+    las       = 1,
+    pty       = "s" # Make plots square
+  )
+
+
+  # --- 4. Create the grid of scatterplots ---
+  for (pair in country_pairs) {
+    country1 <- pair[1]
+    country2 <- pair[2]
+
+    # Create the plot with country names as axis labels
+    plot(df[[country1]], df[[country2]],
+         xlab = country1,
+         ylab = country2,
+         main = "", # No individual plot titles
+         pch = 20, cex = 0.5, col = point_colors_alpha)
+
+    # Add more visible reference lines at zero to highlight the tails
+    abline(h = 0, v = 0, col = "grey50", lty = "dashed", lwd = 0.8)
+  }
+  
+  # --- 5. Draw the color scale legend ---
+  # Reduce horizontal margins to make the legend wider.
+  par(mar = c(0.5, 1, 0.5, 1))
+  plot(c(0, 1), c(0, 1), type = 'n', axes = FALSE, xlab = '', ylab = '')
+  
+  # Draw a very wide color bar
+  legend_colors <- col_ramp(100)
+  # Define coordinates for the bar, spanning most of the horizontal space (e.g., 5% to 95%)
+  x_coords <- seq(0.05, 0.95, length.out = 101)
+  
+  # Draw the gradient as a series of thin rectangles
+  rect(x_coords[-101], 0.4, x_coords[-1], 0.7, col = legend_colors, border = NA)
+  # Draw a border around the entire color bar
+  rect(min(x_coords), 0.4, max(x_coords), 0.7, border = "grey30")
+  
+  # Add larger Date Labels below the bar
+  min_date_label <- format(min(dates, na.rm = TRUE), "%b %Y")
+  max_date_label <- format(max(dates, na.rm = TRUE), "%b %Y")
+  
+  # Align the date labels with the edges of the color bar
+  text(x = min(x_coords), y = 0.15, labels = min_date_label, cex = 1.0, col = .COL_AXIS, adj = 0)
+  text(x = max(x_coords), y = 0.15, labels = max_date_label, cex = 1.0, col = .COL_AXIS, adj = 1)
+  
+  # Add a larger, non-bold Legend Title above the bar
+  text(x = 0.5, y = 0.85, "Date", cex = 1.2, font = 1, col = .COL_AXIS)
 }

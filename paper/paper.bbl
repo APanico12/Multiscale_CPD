@@ -1,0 +1,68 @@
+\begin{thebibliography}{}
+
+\bibitem[Ahelegbey et~al., 2025]{Ahelegbey2025}
+Ahelegbey, D.~F., Casarin, R., Fianu, E.~S., and Grossi, L. (2025).
+\newblock Structural changes in contagion channels: the impact of covid-19 on the italian electricity market.
+\newblock {\em Annals of Operations Research}, 345(2):1035--1060.
+
+\bibitem[Ahelegbey et~al., 2020]{Ahelegbey2020}
+Ahelegbey, D.~F., Giudici, P., and Mojtahedi, F. (2020).
+\newblock Tail risk measurement in crypto-asset markets.
+\newblock {\em SSRN Electronic Journal}.
+
+\bibitem[Castro-Camilo et~al., 2018]{Castro2018}
+Castro-Camilo, D., de~Carvalho, M., and Wadsworth, J. (2018).
+\newblock {Time-varying extreme value dependence with application to leading European stock markets}.
+\newblock {\em The Annals of Applied Statistics}, 12(1):283 -- 309.
+
+\bibitem[de~Haan and Zhou, 2021]{Haan2021}
+de~Haan, L. and Zhou, C. (2021).
+\newblock Trends in extreme value indices.
+\newblock {\em Journal of the American Statistical Association}, 116(535):1265--1279.
+
+\bibitem[Deng et~al., 2025]{Deng2025}
+Deng, L., Liu, X., and Chen, X. (2025).
+\newblock Extreme downside shocks in international financial markets: transmission boundaries and typical events.
+\newblock {\em International Review of Economics \& Finance}, 104:104608.
+
+\bibitem[Drees, 2023]{Drees2023}
+Drees, H. (2023).
+\newblock {Statistical inference on a changing extreme value dependence structure}.
+\newblock {\em The Annals of Statistics}, 51(4):1824 -- 1849.
+
+\bibitem[Dupuis and Trapin, 2019]{Dupuis2019}
+Dupuis, D.~J. and Trapin, L. (2019).
+\newblock Ground-level ozone: Evidence of increasing serial dependence in the extremes.
+\newblock {\em The Annals of Applied Statistics}, 13(1):pp. 34--59.
+
+\bibitem[Gong and Huser, 2022]{Gong2022}
+Gong, Y. and Huser, R. (2022).
+\newblock {Asymmetric tail dependence modeling, with application to cryptocurrency market data}.
+\newblock {\em The Annals of Applied Statistics}, 16(3):1822 -- 1847.
+
+\bibitem[Hoga, 2022]{Hoga2022}
+Hoga, Y. (2022).
+\newblock Modeling time-varying tail dependence, with application to systemic risk forecasting.
+\newblock {\em Journal of Financial Econometrics}, 20(5):1007--1037.
+
+\bibitem[Huber, 1964]{huber1964robust}
+Huber, P.~J. (1964).
+\newblock Robust estimation of a location parameter.
+\newblock {\em The Annals of Mathematical Statistics}, 35(1):73--101.
+
+\bibitem[Huber, 1973]{huber1973robust}
+Huber, P.~J. (1973).
+\newblock Robust regression: Asymptotics, conjectures and monte carlo.
+\newblock {\em The Annals of Statistics}, 1(5):799--821.
+
+\bibitem[Lindström and Regland, 2012]{Lindstrom2012}
+Lindström, E. and Regland, F. (2012).
+\newblock Modeling extreme dependence between european electricity markets.
+\newblock {\em Energy Economics}, 34(4):899--904.
+
+\bibitem[Mies, 2023]{Mies2023}
+Mies, F. (2023).
+\newblock Functional estimation and change detection for nonstationary time series.
+\newblock {\em Journal of the American Statistical Association}, 118(542):1011--1022.
+
+\end{thebibliography}

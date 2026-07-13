@@ -26,15 +26,15 @@ MC.Bootstrap <- 100
 MC.levels <- 1e3
 
 #Set up DGP
-n_values = c(2000)#, 500, 2000,5000)
+n_values = c(2000)
 d = 5
 rho = 0 # pairwisecorr sigmat_matrix
 nu = 3 #dgf t
-theta.Clayton = 2
-nu_param = 5 #df t marginals
+theta.Clayton = 0
+nu_param = 3 #df t marginals
 
 #tau and L_n types
-tau_values = c(-1, -1.5,-2)
+tau_values = c(-1.5,-2)
 L_n_types = c("0.75(log(n))^2","0.5(log(n))^2","0.25(log(n))^2")
 
 #Implement the DGP
