@@ -1,0 +1,6 @@
+"iteration","level","d","dgp_name","n_values","tau","L_n_type","stat"
+1,1,2,"Clayton_Sine",2000,-2,"1(log(n))^2",0.09
+1,1,2,"Clayton_Sine",2000,-2,"0.75(log(n))^2",0.48
+1,1,2,"Clayton_Sine",2000,-2,"0.5(log(n))^2",0.41
+1,1,2,"Clayton_Sine",2000,-2,"0.25(log(n))^2",0.4
+1,1,2,"Clayton_Sine",2000,-2,"0.1(log(n))^2",0.03

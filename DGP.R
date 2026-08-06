@@ -15,7 +15,7 @@ library(evd)# for frechet marginals
 # t-Copula
 # ==========================================
 
-Gen.from.t <- function(n = 2000, d = 5, rho = 0, nu = 3, margins_df = 3, time_varying = FALSE) {
+Gen.from.t <- function(n = 2000, d = 5, rho = 0, nu = 5, margins_df = 5, time_varying = FALSE) {
   
   # 1. Define the t-copula 
   t_cop <- tCopula(param = rho, dim = d, df = nu, dispstr = "ex")
@@ -36,7 +36,7 @@ Gen.from.t <- function(n = 2000, d = 5, rho = 0, nu = 3, margins_df = 3, time_va
 # Clayton Copula
 # ==========================================
 
-Gen.from.clayton <- function(n = 2000, d = 5, theta = 2, margins_df = 3, time_varying = FALSE) {
+Gen.from.clayton <- function(n = 2000, d = 5, theta = 2, margins_df = 5, time_varying = FALSE) {
   
   # Define the Clayton blueprint
   clayton_cop <- claytonCopula(param = theta, dim = d)
@@ -57,7 +57,7 @@ Gen.from.clayton <- function(n = 2000, d = 5, theta = 2, margins_df = 3, time_va
 # ==========================================
 # Frank Copula 
 # ==========================================
-Gen.from.frank <- function(n = 2000, d = 5, theta = 5, margins_df = 3, time_varying = FALSE) {
+Gen.from.frank <- function(n = 2000, d = 5, theta = 5, margins_df = 5, time_varying = FALSE) {
   
   # Define the Frank blueprint
   frank_cop <- frankCopula(param = theta, dim = d)
@@ -88,4 +88,57 @@ Apply.sine <- function(X) {
     col * c_t
   })
   return(X_new)
+}
+
+# ==========================================
+# Alternative DGP: Clayton Copula with linear trend in theta
+# ==========================================
+Gen.from.clayton.alt <- function(n, d, teta = 10 , marginal_df = 5) {
+  U <- matrix(0, nrow = n, ncol = d)
+  for (i in 1:n) {
+    u <- i / n
+    # Linear trend for theta: theta(u) = 2 + 4u
+    theta <- 0 + teta * u
+    cop <- claytonCopula(theta, dim = d)
+    U[i, ] <- rCopula(1, cop)
+  }
+  X <- qt(U, df = marginal_df)
+  return(X)
+}
+
+# ==========================================
+# Alternative DGP: t-Copula with linear trend or jump in rho
+# ==========================================
+Gen.from.t.alt <- function(n, d, scenario = "linear", rho1_jump = 0.5, marginal_df = 5, copula_df = 5) {
+  U <- matrix(0, nrow = n, ncol = d)
+  rho_vec <- numeric(n)
+  
+  if (scenario == "linear") {
+    # use linspace to create a linear sequence of rho values from 0 to 0.95
+    rho_vec <- seq(0, 0.95, length.out = n)
+  } else if (scenario == "jump") {
+    break_point <- floor(n * 0.5)
+    rho_vec[1:break_point] <- 0
+    rho_vec[(break_point + 1):n] <- rho1_jump
+  } else {
+    stop("Scenario must be 'linear' or 'jump'")
+  }
+
+  for (i in 1:n) {
+    # Create a vector of the single correlation parameter, repeated as many times as required
+    # by the 'unstructured' dispersion structure for a given dimension 'd'.
+    num_params <- d * (d - 1) / 2
+    if (num_params > 0) {
+      param_vector <- rep(rho_vec[i], num_params)
+    } else {
+      param_vector <- numeric(0) # For d=1, no correlation parameters
+    }
+    # Note: tCopula requires df > 2 for the correlation to be defined.
+    # The default copula_df = 4 is safe.
+    cop <- tCopula(param = param_vector, df = copula_df, dim = d, dispstr = "un")
+    U[i, ] <- rCopula(1, cop)
+  }
+
+  X <- qt(U, df = marginal_df)
+  return(X)
 }

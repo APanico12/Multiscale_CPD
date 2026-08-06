@@ -18,6 +18,7 @@ library(rugarch)
 # Source the file containing the SEDCD functions
 # The old source was "Linearized_CUSUM.R"
 source("sedcd_try.R")
+source("Plot_functions.R")
 
 
 ############################################################
@@ -41,7 +42,22 @@ str(df)
 ############################################################
 countries <- c("DE_LU", "IT_NORD", "FR", "AT", "PL", "ES", "BE", "NL")
 colnames(df)<-c("Date",countries)
-sel_countries <- c("DE_LU", "IT_NORD", "BE", "PL", "NL","FR") 
+sel_countries <- c("DE_LU", "IT_NORD", "BE", "PL", "NL","FR")
+
+# --- Plot prices and returns before analysis ---
+cat("Generating and saving prices and returns plot...\n")
+
+df_selected <- df[, c("Date", sel_countries)]
+
+plot_prices_and_returns(df_selected, date_col_name = "Date",
+  filename = "paper/img/prices_returns.pdf",
+  pdf_width = 455,  # Now interpreted as 455 points
+  pdf_height = 711, # Now interpreted as 711 points
+  units = "pt"      # Specify that the dimensions are in points
+  )
+
+cat("Plot saved to paper/img/prices_returns.pdf\n")
+
 price_matrix <- as.matrix(df[, -1])
 
 X_matrix <- diff(price_matrix) 
@@ -96,7 +112,7 @@ cat(
 # Since the data is now standardized residuals, we can set tau based on
 # standard normal quantiles to isolate the extreme tail.
 # We use the 5% quantile, as suggested.
-tau = -1.68 # qnorm(0.05)
+tau = -1.5 # qnorm(0.05)
 gamma <- 0.1
 cv_loss <- function(x, k, lag, tau, gamma) {
     N <- nrow(x)
@@ -121,7 +137,7 @@ cv_loss <- function(x, k, lag, tau, gamma) {
 cat("Starting cross-validation for optimal bandwidth k...\n")
 
 # Define search space for k
-k_grid <- floor(seq(N^0.35, N^0.75, length.out = 5))
+k_grid <- floor(seq(N^0.35, N^0.65, length.out = 5))
 
 # Define lag for cross-validation
 L_n <- floor(0.25*log(N)^2)
@@ -145,7 +161,7 @@ cutoff <- k
 lag <- L_n
 
 #block size
-b <- L_n 
+b <- L_n
 
 # Bootstrap replications
 MC <- 1000

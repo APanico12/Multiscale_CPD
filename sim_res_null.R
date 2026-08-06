@@ -19,7 +19,7 @@ library(knitr) # For creating LaTeX tables
 cat("Loading simulation results from 'simulation_results.csv'...\n")
 
 # Define the file path (assumes it's in the same directory)
-results_file <- "simulation_results.csv"
+results_file <- "sim_null_csv/sim_null_clayton_d_5_tau2_sine.csv"
 
 if (!file.exists(results_file)) {
   stop("Simulation results file not found: ", results_file, 
@@ -69,10 +69,8 @@ cat("\n\n--- Generating LaTeX table for the paper ---\n")
 # Columns: Sample size (n). We filter for a specific L_n to avoid duplicates.
 latex_table_data <- empirical_size_summary %>%
   # The warning occurs because there are multiple L_n types for each (DGP, tau, n) combo.
-  # We select one L_n type to display in the table, as is common for paper summaries.
-  filter(`L_n` == "0.25(log(n))^2") %>%
-  select(DGP, tau, n, `empirical_size_10%`) %>% # Select only necessary columns
-  pivot_wider(names_from = n, values_from = `empirical_size_10%`)
+  select(DGP, tau, n, L_n, `empirical_size_10%`) %>% # Select only necessary columns
+  pivot_wider(names_from = L_n, values_from = `empirical_size_10%`)
 
 # Create and print the LaTeX table code
 latex_table <- kable(latex_table_data, 

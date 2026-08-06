@@ -274,12 +274,22 @@ plot_pvalue_histograms_fabian <- function(sim_results,
 #' @param df A data frame containing the time series data. Must have a date
 #'   column and one or more numeric price columns.
 #' @param date_col_name The name of the column containing dates or date-time
-#'   objects.
-#' @param main_title The main title for the entire plot grid.
-plot_prices_and_returns <- function(df, date_col_name = "Date") {
+#'   objects. Defaults to "Date".
+#' @param filename The name of the output PDF file.
+#' @param pdf_width The width of the PDF in inches.
+#' @param pdf_height The height of the PDF in inches. If `NULL` (the default),
+#'   the height is calculated based on the number of assets.
+#' @param units The unit for `pdf_width` and `pdf_height`. Can be "in" (inches, default) or "pt" (points).
+#'
+plot_prices_and_returns <- function(df, date_col_name = "Date", filename = "prices_and_returns.pdf", pdf_width = 7, pdf_height = NULL, units = "in") {
+  
+  # Ensure the date ticks are in English
+  original_locale <- Sys.getlocale("LC_TIME")
+  Sys.setlocale("LC_TIME", "English")
+  on.exit(Sys.setlocale("LC_TIME", original_locale), add = TRUE)
 
   op <- par(no.readonly = TRUE)
-  on.exit(par(op))
+  on.exit(par(op), add = TRUE)
   
   .set_theme() # Apply consistent theme
 
@@ -291,30 +301,45 @@ plot_prices_and_returns <- function(df, date_col_name = "Date") {
     return(invisible(NULL))
   }
 
-  # Calculate simple returns (price changes): P_t - P_{t-1}
-  # This is used because electricity prices can be negative, making log returns invalid.
-  # This also matches the analysis in Application_new.R which uses diff(price_matrix).
+  # Determine the base height in the specified units
+  base_height_in_units <- if (is.null(pdf_height)) n_assets * 3.5 else pdf_height
+
+  # Convert dimensions to inches for the pdf() function
+  if (units == "pt") {
+    conversion_factor <- 72 # 1 inch = 72 points
+    actual_pdf_width_in_inches <- pdf_width / conversion_factor
+    actual_pdf_height_in_inches <- base_height_in_units / conversion_factor
+  } else if (units == "in") {
+    actual_pdf_width_in_inches <- pdf_width
+    actual_pdf_height_in_inches <- base_height_in_units
+  } else {
+    warning("Unsupported unit. Using inches. Please use 'in' or 'pt'.")
+    actual_pdf_width_in_inches <- pdf_width
+    actual_pdf_height_in_inches <- base_height_in_units
+  }
+
+  # --- Save to PDF ---
+  # Determine height if not provided, maintaining the scaling logic
+  pdf(filename, width = actual_pdf_width_in_inches, height = actual_pdf_height_in_inches)
+  on.exit(dev.off(), add = TRUE)
+  
+  # Calculate simple returns
   returns_df <- as.data.frame(lapply(df[price_cols], function(x) c(NA, diff(x))))
   names(returns_df) <- paste0("ret_", price_cols)
 
   dates <- df[[date_col_name]]
-  # Ensure the date column is a Date object for correct plotting on the x-axis
   if (!inherits(dates, c("Date", "POSIXt"))) {
     dates <- as.Date(dates)
   }
 
-  # Generate tick locations at 3-month intervals
   tick_locations <- seq(from = min(dates, na.rm = TRUE), to = max(dates, na.rm = TRUE), by = "3 months")
 
-  # Adjust margins for a compact layout with no outer titles or y-axis labels.
   par(
     mfrow = c(n_assets, 2),
-    oma   = c(2, 2, 2, 1),        # Outer margins for spacing
-    mar   = c(3.0, 3.5, 2.5, 1.0), # c(bottom, left, top, right)
-    # Match font sizes from plot_return_correlations for consistency
+    oma   = c(2, 2, 2, 1),
+    mar   = c(3.0, 2, 2.5, 0),
     cex.main  = 0.75,
     cex.axis  = 0.75,
-    # Pull axis labels closer to the plot, matching other functions
     mgp       = c(2.2, 0.7, 0)
   )
 
@@ -334,8 +359,6 @@ plot_prices_and_returns <- function(df, date_col_name = "Date") {
   }
 
 }
-
-
 
 # ── 9. plot_return_correlations ───────────────────────────────────────────────
 #' Create a Pairs Plot of Asset Returns Colored by Date
