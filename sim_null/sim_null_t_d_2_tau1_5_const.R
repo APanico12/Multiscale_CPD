@@ -71,7 +71,7 @@ sim_grid <- do.call(rbind, grid_list)
 find_k_opt <- function(X, L_n, tau, gamma) {
   N <- nrow(X)
   k_min <- max(1, floor(N^0.35))
-  k_max <- floor(N^0.65)
+  k_max <- floor(N^0.75)
   # evaluate on a small grid of 5 points to save computation time
   k_grid <- unique(floor(seq(k_min, k_max, length.out = 5)))
   

@@ -7,7 +7,7 @@
 #SBATCH --error=mc_error_%j.txt
 #SBATCH --partition=cpu
 #SBATCH --nodes=1
-#SBATCH --cpus-per-task=32
+#SBATCH --cpus-per-task=60
 #SBATCH --time=0-24:00:00
 #SBATCH --mem=125G
 

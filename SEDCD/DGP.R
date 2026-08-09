@@ -29,7 +29,6 @@ Gen.from.t <- function(n = 2000, d = 5, rho = 0, nu = 5, margins_df = 5, time_va
   
   if(time_varying){
     sim_data = Apply.sine(sim_data)}
-  
   return(sim_data)
 }
 # ==========================================
@@ -37,7 +36,7 @@ Gen.from.t <- function(n = 2000, d = 5, rho = 0, nu = 5, margins_df = 5, time_va
 # ==========================================
 
 Gen.from.clayton <- function(n = 2000, d = 5, theta = 2, margins_df = 5, time_varying = FALSE) {
-  
+
   # Define the Clayton blueprint
   clayton_cop <- claytonCopula(param = theta, dim = d)
   
@@ -98,7 +97,7 @@ Gen.from.clayton.alt <- function(n, d, teta = 10 , marginal_df = 5) {
   for (i in 1:n) {
     u <- i / n
     # Linear trend for theta: theta(u) = 2 + 4u
-    theta <- 0 + teta * u
+    theta <- teta * u
     cop <- claytonCopula(theta, dim = d)
     U[i, ] <- rCopula(1, cop)
   }
@@ -109,17 +108,17 @@ Gen.from.clayton.alt <- function(n, d, teta = 10 , marginal_df = 5) {
 # ==========================================
 # Alternative DGP: t-Copula with linear trend or jump in rho
 # ==========================================
-Gen.from.t.alt <- function(n, d, scenario = "linear", rho1_jump = 0.5, marginal_df = 5, copula_df = 5) {
+Gen.from.t.alt <- function(n, d, scenario = "linear", final_rho = 0.95, marginal_df = 5, copula_df = 5) {
   U <- matrix(0, nrow = n, ncol = d)
   rho_vec <- numeric(n)
-  
+   
   if (scenario == "linear") {
-    # use linspace to create a linear sequence of rho values from 0 to 0.95
-    rho_vec <- seq(0, 0.95, length.out = n)
+    # use linspace to create a linear sequence of rho values from 0 to final_rho
+    rho_vec <- seq(0, final_rho, length.out = n)
   } else if (scenario == "jump") {
     break_point <- floor(n * 0.5)
     rho_vec[1:break_point] <- 0
-    rho_vec[(break_point + 1):n] <- rho1_jump
+    rho_vec[(break_point + 1):n] <- final_rho
   } else {
     stop("Scenario must be 'linear' or 'jump'")
   }

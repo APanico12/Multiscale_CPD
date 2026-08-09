@@ -50,7 +50,7 @@ cat("Generating and saving prices and returns plot...\n")
 df_selected <- df[, c("Date", sel_countries)]
 
 plot_prices_and_returns(df_selected, date_col_name = "Date",
-  filename = "paper/img/prices_returns.pdf",
+  filename = "../paper/img/prices_returns.pdf",
   pdf_width = 455,  # Now interpreted as 455 points
   pdf_height = 711, # Now interpreted as 711 points
   units = "pt"      # Specify that the dimensions are in points
@@ -140,7 +140,7 @@ cat("Starting cross-validation for optimal bandwidth k...\n")
 k_grid <- floor(seq(N^0.35, N^0.65, length.out = 5))
 
 # Define lag for cross-validation
-L_n <- floor(0.25*log(N)^2)
+L_n <- floor(0.1*log(N)^2)
 
 cv_results <- sapply(k_grid, function(k_val) {
   cat("Testing k =", k_val, "\n")

@@ -19,7 +19,7 @@ library(knitr) # For creating LaTeX tables
 cat("Loading simulation results from 'simulation_results.csv'...\n")
 
 # Define the file path (assumes it's in the same directory)
-results_file <- "sim_null_csv/sim_null_clayton_d_5_tau2_sine.csv"
+results_file <- "sim_null_clayton_d_2_tau1_5_const.csv"
 
 if (!file.exists(results_file)) {
   stop("Simulation results file not found: ", results_file, 

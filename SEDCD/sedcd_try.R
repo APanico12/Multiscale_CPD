@@ -214,29 +214,29 @@ for(i in 1:MC){
 # #Example of usage
 # ###########################
 
-# source("DGP.R")
-# set.seed(123)
+source("DGP.R")
+set.seed(123)
 
-# X = Gen.from.t()
-# #X = rbind(X,Gen.from.t( n = 1000, rho = 0.8, margins_df = 3,time_varying = TRUE))
-# plot(X[1:1000,1],X[1:1000,2])
-# plot(X[1000:2000,1],X[1000:2000,2])
-# plot.zoo(X)
-# n = nrow(X)
-# d =ncol(X)
-# k = floor(n^0.75)
-# lag = floor(0.1 * log(n)^2)
+X = Gen.from.t()
+#X = rbind(X,Gen.from.t( n = 1000, rho = 0.8, margins_df = 3,time_varying = TRUE))
+plot(X[1:1000,1],X[1:1000,2])
+plot(X[1000:2000,1],X[1000:2000,2])
+plot.zoo(X)
+n = nrow(X)
+d =ncol(X)
+k = floor(n^0.75)
+lag = floor(0.1 * log(n)^2)
 
-# tau_val <- -1
-# gamma_val <- 0.1
+tau_val <- -1
+gamma_val <- 0.1
 
-# teta = get.teta.sedcd(X, k, tau = tau_val, gamma = gamma_val)
-# # int.sedcd.antonio = int.par.sedcd(X, teta, lag=lag, cutoff=k+lag, k, tau = tau_val, gamma = gamma_val)
+teta = get.teta.sedcd(X, k, tau = tau_val, gamma = gamma_val)
+# int.sedcd.antonio = int.par.sedcd(X, teta, lag=lag, cutoff=k+lag, k, tau = tau_val, gamma = gamma_val)
 
-# # var.est.antonio = var.est.sedcd(X, teta, block = lag, lag = lag, cutoff = 1, k, tau = tau_val, gamma = gamma_val)
+# var.est.antonio = var.est.sedcd(X, teta, block = lag, lag = lag, cutoff = 1, k, tau = tau_val, gamma = gamma_val)
 
-# result_sedcd <- CUSUM.sedcd(X, teta = teta, lag = lag, block = lag,
-#                             cutoff = k + lag + 10, k = k,
-#                             tau = tau_val, gamma = gamma_val,
-#                             MC = 1000, plotting = TRUE)
-# p_value_sedcd <- result_sedcd$p_value
+result_sedcd <- CUSUM.sedcd(X, teta = teta, lag = lag, block = lag,
+                            cutoff = k + lag + 10, k = k,
+                            tau = tau_val, gamma = gamma_val,
+                            MC = 1000, plotting = TRUE)
+p_value_sedcd <- result_sedcd$p_value
