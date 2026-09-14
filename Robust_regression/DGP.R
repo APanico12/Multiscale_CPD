@@ -67,8 +67,9 @@ generate_tv_regression_dgp <- function(n = 500,
   
   error_dist    <- tolower(error_dist)
   if (error_dist == "gaussian") error_dist <- "normal"
+  if (error_dist %in% c("t_3", "t-3")) error_dist <- "t3"
   if (!error_dist %in% c("normal", "t3")) {
-    stop(paste("Unknown error_dist:", error_dist, "- Expected 'normal'/'gaussian' or 't3'"))
+    stop(paste("Unknown error_dist:", error_dist, "- Expected 'normal'/'gaussian' or 't3'/'t_3'"))
   }
   
   contamination <- toupper(contamination)
@@ -274,6 +275,8 @@ plot_contaminated_series <- function(dgp_res, title_text) {
 
 # Run visual verification only if executed as the main script
 if (sys.nframe() == 0) {
+# Run visual verification demo
+demo_dgp <- function() {
   par(mfrow = c(2, 2), mar = c(3.8, 3.8, 2.5, 1))
   
   # 1. Clean
@@ -297,3 +300,5 @@ if (sys.nframe() == 0) {
   
   par(mfrow = c(1, 1))
 }
+}
+

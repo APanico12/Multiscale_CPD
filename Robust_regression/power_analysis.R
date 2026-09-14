@@ -11,6 +11,9 @@ suppressPackageStartupMessages({
   library(foreach)
   library(ggplot2)
 })
+if (requireNamespace("ggplot2", quietly = TRUE)) {
+  suppressPackageStartupMessages(library(ggplot2))
+}
 
 # Source dependencies
 if (file.exists("DGP.R")) source("DGP.R")
@@ -176,6 +179,31 @@ run_power_analysis <- function(delta_grid    = seq(0.0, 1.5, by = 0.25),
 #' @return ggplot object
 
 plot_power_curves <- function(df_res, title = "Empirical Power Curves under H1 (Abrupt Break in beta_1)") {
+  if (!requireNamespace("ggplot2", quietly = TRUE)) {
+    cat("Notice: 'ggplot2' is not installed. Plotting using base R graphics...\n")
+    deltas <- sort(unique(df_res$delta))
+    n_vals <- unique(df_res$N)
+    cols <- c("#e41a1c", "#377eb8", "#4daf4a", "#984ea3")
+    
+    plot(deltas, seq(0, 1, length.out = length(deltas)), type = "n", ylim = c(0, 1.05),
+         xlab = expression(paste("Break Magnitude (", delta, ")")),
+         ylab = "Empirical Power P(Reject H0)",
+         main = title, font.main = 2)
+    abline(h = 0.05, lty = 2, col = "gray40")
+    grid(col = "gray85")
+    
+    for (i in seq_along(n_vals)) {
+      sub_n <- df_res[df_res$N == n_vals[i], ]
+      sub_n <- sub_n[order(sub_n$delta), ]
+      col_cur <- cols[(i - 1) %% length(cols) + 1]
+      lines(sub_n$delta, sub_n$power, col = col_cur, lwd = 2)
+      points(sub_n$delta, sub_n$power, col = col_cur, pch = 16, cex = 1.1)
+    }
+    legend("bottomright", legend = as.character(n_vals), col = cols[seq_along(n_vals)],
+           lwd = 2, pch = 16, bty = "n")
+    return(invisible(NULL))
+  }
+
   p <- ggplot(df_res, aes(x = delta, y = power, color = N, group = N, fill = N)) +
     geom_hline(yintercept = 0.05, linetype = "dashed", color = "darkgray", linewidth = 0.8) +
     geom_ribbon(aes(ymin = ci_lower, ymax = ci_upper), alpha = 0.15, color = NA) +

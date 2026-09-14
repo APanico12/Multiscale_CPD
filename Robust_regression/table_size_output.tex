@@ -1,0 +1,54 @@
+% ==============================================================================
+% Table: Empirical Size Rejection Frequencies under H0 (alpha = 0.05)
+% ==============================================================================
+\begin{table}[!htbp]
+\centering
+\caption{Empirical size rejection frequencies under the null hypothesis $\mathcal{H}_0$ (nominal level $\alpha = 0.05$) across $N_{\text{sim}} = 1{,}000$ Monte Carlo replications for sample sizes $n \in \{500, 1{,}000, 5{,}000\}$ across Model~I (LMHC) and Model~II (LMAT). Compares the Proposed Linearized Robust M-Test with the Classical $L_2$/OLS Test across various contamination regimes.}
+\label{tab:empirical_size}
+\vspace{0.2cm}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lllcccccccc}
+\toprule
+& & & & \multicolumn{1}{c}{\textbf{Proposed Linearized M-Test}} & & \multicolumn{1}{c}{\textbf{Classical $L_2$/OLS Test}} \\
+\cmidrule{5-5} \cmidrule{7-7}
+\textbf{Model} & \textbf{Noise} & \textbf{Regime} & $\boldsymbol{\varepsilon}$ & $n = 150$ & & $n = 150$ \\
+\midrule
+\multirow{14}{*}{\textbf{Model I (LMHC)}}
+& $\mathcal{N}(0, 1)$  & Clean & 0.00 & 0.000 & & 0.000 \\
+&                      & AO    & 0.05 & 0.000 & & 0.000 \\
+&                      & AO    & 0.10 & - & & - \\
+&                      & IO    & 0.05 & - & & - \\
+&                      & IO    & 0.10 & - & & - \\
+&                      & RO    & 0.05 & - & & - \\
+&                      & RO    & 0.10 & - & & - \\
+\cmidrule{2-7}
+& $t_3$                & Clean & 0.00 & - & & - \\
+&                      & AO    & 0.05 & - & & - \\
+&                      & AO    & 0.10 & - & & - \\
+&                      & IO    & 0.05 & - & & - \\
+&                      & IO    & 0.10 & - & & - \\
+&                      & RO    & 0.05 & - & & - \\
+&                      & RO    & 0.10 & - & & - \\
+\midrule
+\multirow{14}{*}{\textbf{Model II (LMAT)}}
+& $\mathcal{N}(0, 1)$  & Clean & 0.00 & - & & - \\
+&                      & AO    & 0.05 & - & & - \\
+&                      & AO    & 0.10 & - & & - \\
+&                      & IO    & 0.05 & - & & - \\
+&                      & IO    & 0.10 & - & & - \\
+&                      & RO    & 0.05 & - & & - \\
+&                      & RO    & 0.10 & - & & - \\
+\cmidrule{2-7}
+& $t_3$                & Clean & 0.00 & - & & - \\
+&                      & AO    & 0.05 & - & & - \\
+&                      & AO    & 0.10 & - & & - \\
+&                      & IO    & 0.05 & - & & - \\
+&                      & IO    & 0.10 & - & & - \\
+&                      & RO    & 0.05 & - & & - \\
+&                      & RO    & 0.10 & - & & - \\
+\bottomrule
+\end{tabular}%
+}
+\vspace{0.15cm}
+\parbox{\textwidth}{\footnotesize \textit{Note:} Nominal significance level is set to $\alpha = 0.05$ across $N_{\text{sim}} = 1{,}000$ Monte Carlo replications with $B = 100$ multiplier bootstrap draws. Evaluated under Model I (LMHC) and Model II (LMAT) for Gaussian $\mathcal{N}(0, 1)$ and Student-$t_3$ innovations across Clean ($\varepsilon = 0.00$) and contamination regimes (AO, IO, RO) at $\varepsilon = 0.05, 0.10$.}
+\end{table}

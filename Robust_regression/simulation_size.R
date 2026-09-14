@@ -120,7 +120,6 @@ rownames(full_grid) <- NULL
 
 cat(sprintf("Total size simulation tasks: %d (%d design points x %d replications)\n",
             nrow(full_grid), nrow(base_design), MC_reps))
-cat(sprintf("Bootstrap iterations B: %d | Loss: %s\n", B_boot, loss_choice))
 cat(sprintf("Bootstrap iterations B: %d | Loss: %s | Bandwidth k: %s\n", 
             B_boot, loss_choice, as.character(k_param)))
 
@@ -129,7 +128,6 @@ cat(sprintf("Bootstrap iterations B: %d | Loss: %s | Bandwidth k: %s\n",
 # ------------------------------------------------------------------------------
 
 run_one_size_sim <- function(model_type, n, innov_dist, contamination, epsilon,
-                             B_boot, loss, rep_seed) {
                              B_boot, loss, rep_seed, k_val = 0.45) {
   dgp_out <- generate_tv_regression_dgp(
     n             = n,
@@ -156,7 +154,6 @@ run_one_size_sim <- function(model_type, n, innov_dist, contamination, epsilon,
       Y          = Y,
       X          = X,
       C_mat      = C_mat,
-      k          = 0.45,
       k          = k_val,
       lag        = NULL,
       block      = NULL,
@@ -165,7 +162,7 @@ run_one_size_sim <- function(model_type, n, innov_dist, contamination, epsilon,
       linearized = TRUE,
       plotting   = FALSE
     )
-  }, error = function(e) list(stat = NA, crit_value = NA, p_value = NA, reject = NA))
+  }, error = function(e) list(test_stat = NA_real_, p_value = NA_real_, reject_95 = FALSE))
   
   # 2. Classical L2 / OLS CUSUM Test
   res_l2 <- tryCatch({
@@ -181,15 +178,15 @@ run_one_size_sim <- function(model_type, n, innov_dist, contamination, epsilon,
       linearized = TRUE,
       plotting   = FALSE
     )
-  }, error = function(e) list(stat = NA, crit_value = NA, p_value = NA, reject = NA))
+  }, error = function(e) list(test_stat = NA_real_, p_value = NA_real_, reject_95 = FALSE))
   
   return(list(
     rej_lin  = as.integer(isTRUE(res_lin$reject_95)),
-    stat_lin = res_lin$test_stat,
-    pval_lin = res_lin$p_value,
+    stat_lin = if (is.null(res_lin$test_stat) || length(res_lin$test_stat) == 0) NA_real_ else res_lin$test_stat,
+    pval_lin = if (is.null(res_lin$p_value) || length(res_lin$p_value) == 0) NA_real_ else res_lin$p_value,
     rej_l2   = as.integer(isTRUE(res_l2$reject_95)),
-    stat_l2  = res_l2$test_stat,
-    pval_l2  = res_l2$p_value
+    stat_l2  = if (is.null(res_l2$test_stat) || length(res_l2$test_stat) == 0) NA_real_ else res_l2$test_stat,
+    pval_l2  = if (is.null(res_l2$p_value) || length(res_l2$p_value) == 0) NA_real_ else res_l2$p_value
   ))
 }
 
@@ -214,6 +211,7 @@ cl <- makeCluster(cores)
 registerDoParallel(cl)
 clusterSetRNGStream(cl, iseed = 202609)
 clusterExport(cl, c("run_one_size_sim", "loss_choice", "B_boot"))
+clusterExport(cl, c("run_one_size_sim", "loss_choice", "B_boot", "k_param"))
 
 invisible(clusterEvalQ(cl, {
   suppressPackageStartupMessages({
@@ -246,7 +244,6 @@ results_df <- foreach(
     epsilon       = row_cfg$epsilon,
     B_boot        = B_boot,
     loss          = loss_choice,
-    rep_seed      = r_seed
     rep_seed      = r_seed,
     k_val         = k_param
   )

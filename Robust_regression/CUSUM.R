@@ -7,11 +7,12 @@
 #   - Linearized (bias-corrected) recursive estimator
 #   - Robust variance estimation
 #   - CUSUM-type test for change in regression coefficients, with Monte Carlo critical values
+
 # =============================================================================
 # -----------------------------------------------------------------------------
 # 1. Loss, Score, Weight and Derivative Functions
 # -----------------------------------------------------------------------------
-library(robustbase)
+
 library(MASS)
 
 # Welsh (Welsch) functions
@@ -162,13 +163,13 @@ get_theta <- function(Y, X, k = 0.65, c = 2.985, loss = "Welsh") {
 # -----------------------------------------------------------------------------
 
 #' Cross-Validation for Optimal Rolling Bandwidth k
-#' Implements Equation (861) from paper.tex / SEDCD:
+#' Implements Equation (861) from paper.tex 
 #' Lambda(k) = sum_{t=k}^{N - L_n} || H(D_{t+L_n}, \hat{beta}_t(k)) ||^2
 #'
 #' @param Y       numeric vector of responses (length N)
 #' @param X       numeric matrix of regressors (N x d)
 #' @param k_grid  candidate bandwidth vector (integers, or rate exponents < 1)
-#' @param lag     decoupling lag L_n (default: ceiling(N^0.1))
+#' @param lag     decoupling lag L_n (default: floor(0.1 * (log(N))^2))
 #' @param loss    loss function ("Welsh" or "Tukey")
 #' @param c       loss tuning constant
 #' @return list(k_opt, k_opt_rate, lag, cv_losses, k_grid)
@@ -191,9 +192,9 @@ cv_optimal_bandwidth_regression <- function(Y, X, k_grid = NULL, lag = NULL,
     psi_fn <- if (loss == "Welsh") Welsh.psi else tukey_loss_derivative
   }
   
-  # Decoupling lag L_n = N^0.1 as specified in the paper
+  # Decoupling lag L_n = floor(0.1 * (log(N))^2)
   if (is.null(lag)) {
-    lag <- max(1, ceiling(N^0.1))
+    lag <- max(1, floor(0.1 * (log(N))^2))
   } else if (lag < 1) {
     lag <- max(1, ceiling(N^lag))
   }
@@ -279,7 +280,7 @@ cv_optimal_bandwidth_regression <- function(Y, X, k_grid = NULL, lag = NULL,
 #' @param C_mat   contrast / selection matrix (s x d). Default is diag(d)
 #' @return list(Lin.beta = N x d matrix, Mn = N x s cumulative process)
 
-int.par.regression <- function(Y, X, betahat, k = 0.45, lag = NULL, c = NULL, loss = "Tukey", C_mat = NULL) {
+int.par.regression <- function(Y, X, betahat, k = 0.45, lag = NULL, c = NULL, loss = "Welsh", C_mat = NULL) {
   
   N <- length(Y)
   X <- as.matrix(X)
@@ -305,13 +306,12 @@ int.par.regression <- function(Y, X, betahat, k = 0.45, lag = NULL, c = NULL, lo
   }
   
   if (k < 1) k_win <- max(d + 2, floor(N^k)) else k_win <- floor(k)
-  if (is.null(lag)) lag <- max(1, floor(N^0.15))
-  if (lag<1) lag <- floor(N^lag)
+  if (is.null(lag)) lag <- max(1, floor(0.1 * (log(N))^2))
+  if (lag < 1) lag <- floor(N^lag)
 
   Lin.beta <- matrix(0, nrow = N, ncol = d)
   ws <- k_win + lag
-  
-  
+
   ridge_penalty <- 1e-4 * diag(d)
   
   for (t in ws:N) {
@@ -337,7 +337,7 @@ int.par.regression <- function(Y, X, betahat, k = 0.45, lag = NULL, c = NULL, lo
       
       # Future observation score vector at t
       r_future <- Y[t] - sum(X[t, ] * pilot_beta)
-      H_future <- X[t, ] * psi_fn(r_future, c) #there is no scale because it is a single observation
+      H_future <- X[t, ] * psi_fn(r_future / sigma_hat, c) #inherits scale from the past
     }
     
     # One-step Newton correction: pilot + DH^-1 * H_future
@@ -365,14 +365,14 @@ int.par.regression <- function(Y, X, betahat, k = 0.45, lag = NULL, c = NULL, lo
 #' @param X       numeric matrix of regressors (N x d)
 #' @param betahat rolling M-estimates from get_theta() (N x d)
 #' @param k       rolling window size
-#' @param block   block size for aggregating variance contributions
-#' @param lag     decoupling lag
+#' @param block   block size for aggregating variance contributions (default: floor(0.1 * (log(N))^2))
+#' @param lag     decoupling lag (default: floor(0.1 * (log(N))^2))
 #' @param c       tuning constant (default 4.685 for Tukey, 2.985 for Welsh)
 #' @param loss    loss function type: "Tukey" or "Welsh"
 #' @param C_mat   contrast / selection matrix (s x d)
 #' @return list(qn = N x s matrix of incremental variances, Q_est = cumulative variance)
 var.est.regression <- function(Y, X, betahat, k = 0.45, block = NULL, lag = NULL, 
-                               c = NULL, loss = "Tukey", C_mat = NULL) {
+                               c = NULL, loss = "Welsh", C_mat = NULL) {
   N <- length(Y)
   X <- as.matrix(X)
   d <- ncol(X)
@@ -396,8 +396,10 @@ var.est.regression <- function(Y, X, betahat, k = 0.45, block = NULL, lag = NULL
   }
   
   if (k < 1) k_win <- max(d + 2, floor(N^k)) else k_win <- floor(k)
-  if (is.null(block)) block <- max(1, floor(N^0.25))
-  if (is.null(lag))   lag   <- max(1, floor(N^0.15))
+  if (is.null(block)) block <- max(1, floor(0.1 * (log(N))^2))
+  if (block < 1)      block <- max(1, floor(N^block))
+  if (is.null(lag))   lag   <- max(1, floor(0.1 * (log(N))^2))
+  if (lag < 1)        lag   <- max(1, floor(N^lag))
   cutoff <- k_win + block + lag
   
   ridge_penalty <- 1e-4 * diag(d)
@@ -464,8 +466,8 @@ var.est.regression <- function(Y, X, betahat, k = 0.45, block = NULL, lag = NULL
 #' @param X          numeric matrix of regressors (N x d)
 #' @param C_mat      contrast / selection matrix (s x d). Defaults to diag(d)
 #' @param k          rolling window size (proportion e.g. 0.45 or absolute integer)
-#' @param lag        forward decoupling lag (default: floor(N^0.15))
-#' @param block      block size for robust variance estimate (default: floor(N^0.25))
+#' @param lag        forward decoupling lag (default: floor(0.1 * (log(N))^2))
+#' @param block      block size for robust variance estimate (default: floor(0.1 * (log(N))^2))
 #' @param cutoff     trimming threshold for boundary cutoffs
 #' @param c          tuning constant (default: 4.685 for Tukey, 2.985 for Welsh)
 #' @param loss       loss type: "Tukey" or "Welsh"
@@ -496,14 +498,15 @@ CUSUM.regression <- function(Y, X, C_mat = NULL, betahat = NULL, k = 0.65, lag =
   # Cross-validation for optimal bandwidth k if requested
   cv_info <- NULL
   if (isTRUE(use_cv) || (is.character(k) && tolower(k) == "cv")) {
-    cv_info <- cv_optimal_bandwidth_regression(Y, X, lag = max(1, ceiling(N^0.1)), loss = loss, c = c)
+    cv_info <- cv_optimal_bandwidth_regression(Y, X, lag = max(1, floor(0.1 * (log(N))^2)), loss = loss, c = c)
     k <- cv_info$k_opt
   }
   
   if (k < 1) k_win <- max(d + 2, floor(N^k)) else k_win <- floor(k)
-  if (is.null(block)) block <- max(1, floor(N^0.25))
-  if (is.null(lag))   lag   <- max(1, floor(N^0.15))
-  if (lag < 1) lag <- floor(N^lag)
+  if (is.null(block)) block <- max(1, floor(0.1 * (log(N))^2))
+  if (block < 1)      block <- max(1, floor(N^block))
+  if (is.null(lag))   lag   <- max(1, floor(0.1 * (log(N))^2))
+  if (lag < 1)        lag   <- max(1, floor(N^lag))
   min_cutoff <- k_win + block + lag
   if (is.null(cutoff) || cutoff < min_cutoff) cutoff <- min_cutoff
   
@@ -791,34 +794,37 @@ print.cusum_regression <- function(x, ...) {
 # 9. Example Usage: Structural Change Point in Beta (Single Parameter Monitoring)
 # ==============================================================================
 
-if (!exists("generate_tv_regression_dgp")) {
-  if (file.exists("DGP.R")) {
-    source("DGP.R")
-  } else if (file.exists("Multiscale_CPD/Robust_regression/DGP.R")) {
-    source("Multiscale_CPD/Robust_regression/DGP.R")
+demo_cusum <- function() {
+  if (!exists("generate_tv_regression_dgp")) {
+    if (file.exists("DGP.R")) {
+      source("DGP.R")
+    } else if (file.exists("Multiscale_CPD/Robust_regression/DGP.R")) {
+      source("Multiscale_CPD/Robust_regression/DGP.R")
+    }
   }
+
+  # 1. Generate LMHC data with an abrupt change point in beta_1 at u = 0.5 (delta = 1.0)
+  #    and constant beta_2 = 2.0 under 5% Additive Outliers (AO)
+  d_cp <- generate_tv_regression_dgp(n = 1000, model_type = "LMHC", hp_scenario = "H1",
+                                     delta = 0.25, contamination = "RO",
+                                     K = 10, epsilon = 0.05, seed = 123)
+
+  # 2. Pilot robust M-estimates
+  beta <- get_theta(d_cp$Y, d_cp$X, k = 0.65, c = 2.985, loss = "Welsh")
+  #plot true beta and estimated beta
+  plot(1:nrow(d_cp$X), d_cp$beta_true[, 1], type = "l", col = "blue", lwd = 2, ylim = range(c(d_cp$beta_true[, 1], beta[, 1])),
+       xlab = "Time Index", ylab = "Beta Coefficient", main = "True vs Estimated Beta_1")
+  lines(1:nrow(d_cp$X), beta[, 1], type = "l", col = "red", lwd = 2)
+  legend("topright", legend = c("True", "Estimated"), col = c("blue", "red"), lty = 1, lwd = 2)
+
+  # 3. Test specifically for the parameter with the change point: beta_1 
+  c_beta1 <- matrix(c(1, 0), nrow = 1)
+  rownames(c_beta1) <- "beta_1"
+
+  cusum_res <- CUSUM.regression(d_cp$Y, d_cp$X, C_mat = c_beta1, betahat = beta, 
+                                k = 0.65, c = 2.985, loss = "Welsh", lag = 0.1, block = 0.25, 
+                                MC = 500, linearized = TRUE, plotting = TRUE)
+
+  print(cusum_res)
+  invisible(cusum_res)
 }
-
-# 1. Generate LMHC data with an abrupt change point in beta_1 at u = 0.5 (delta = 1.0)
-#    and constant beta_2 = 2.0 under 5% Additive Outliers (AO)
-d_cp <- generate_tv_regression_dgp(n = 1000, model_type = "LMHC", hp_scenario = "H1",
-                                   delta = 1, contamination = "AO",
-                                   K = 10, epsilon = 0.05, seed = 123)
-
-# 2. Pilot robust M-estimates
-beta <- get_theta(d_cp$Y, d_cp$X, k = 0.65, c = 2.985, loss = "Welsh")
-#plot true beta and estimated beta
-plot(1:nrow(d_cp$X), d_cp$beta_true[, 1], type = "l", col = "blue", lwd = 2, ylim = range(c(d_cp$beta_true[, 1], beta[, 1])),
-     xlab = "Time Index", ylab = "Beta Coefficient", main = "True vs Estimated Beta_1")
-lines(1:nrow(d_cp$X), beta[, 1], type = "l", col = "red", lwd = 2)
-legend("topright", legend = c("True", "Estimated"), col = c("blue", "red"), lty = 1, lwd = 2)
-
-# 3. Test specifically for the parameter with the change point: beta_1 (1 parameter, 1 image)
-c_beta1 <- matrix(c(1, 0), nrow = 1)
-rownames(c_beta1) <- "beta_1"
-
-cusum_res <- CUSUM.regression(d_cp$Y, d_cp$X, C_mat = c_beta1, betahat = beta, 
-                              k = 0.65, c = 2.985, loss = "Welsh", lag = 0.1, block = 0.25, 
-                              MC = 500, linearized = TRUE, plotting = TRUE)
-
-print(cusum_res)

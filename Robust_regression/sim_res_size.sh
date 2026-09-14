@@ -6,6 +6,7 @@
 #SBATCH --output=mc_output_size_%j.txt
 #SBATCH --error=mc_error_size_%j.txt
 #SBATCH --partition=cpu
+#SBATCH --qos=cpu
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=60
 #SBATCH --time=0-48:00:00
