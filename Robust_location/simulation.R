@@ -1,163 +1,264 @@
-# This script runs a Monte Carlo simulation to evaluate the bias and MSE of
-# robust location estimators (standard and linearized) under various scenarios.
-# It is designed to run in parallel and saves results to a CSV file.
+# ==============================================================================
+# Monte Carlo Simulation Study: Robust Location Estimation
+# Comparing Standard Recursive M-Estimator vs Linearized Recursive Estimator
+# Supports Welsh and Tukey loss functions, and Cross-Validation for bandwidth selection
+# ==============================================================================
 
-library(doParallel)
-library(foreach)
+suppressPackageStartupMessages({
+  library(doParallel)
+  library(foreach)
+  library(parallel)
+})
 
-# Source the required function files
+# Source required function files
 source("DGP.R")
 source("CUSUM.R")
 
-# --- Simulation Parameters ---
-# NOTE: Reduced numbers for quick local testing.
+# ------------------------------------------------------------------------------
+# 1. Configuration & Parameters
+# ------------------------------------------------------------------------------
+# You can set parameters here directly OR override them via command line arguments:
+#   Rscript simulation.R --use_cv=TRUE --loss=Welsh --reps=1000 --epsilon=0.10
+#   Rscript simulation.R --quick --use_cv=TRUE
+# ------------------------------------------------------------------------------
 
-MC.simulations <- 1000 
-n_values <- c(100,500,1000,5000) #Sample sizes to test
-shift_k_opts <- c(2)   # Shift magnitudes for H1 and H2 scenarios
+args <- commandArgs(trailingOnly = TRUE)
+is_quick    <- any(c("--quick", "--test", "-q") %in% args)
+has_cv_flag <- any(c("--cv", "--use-cv") %in% args)
 
-# --- Model Parameters ---
+parse_arg <- function(arg_name, default_val) {
+  match_idx <- grep(paste0("^--", arg_name, "="), args)
+  if (length(match_idx) > 0) {
+    val_str <- sub(paste0("^--", arg_name, "="), "", args[match_idx[1]])
+    return(val_str)
+  }
+  return(default_val)
+}
+
+# --- PRIMARY CONTROLS ---
+# Set use_cv_default to TRUE if you want CV by default when running without arguments
+use_cv_default  <- FALSE  # Set to TRUE to enable Cross-Validation, or use --use_cv=TRUE or --cv
+loss_default    <- "Welsh" # "Welsh" or "Tukey"
+k_fixed_default <- 0.65   # Bandwidth rate exponent when use_cv is FALSE (e.g. 0.65 -> k = floor(n^0.65))
+
+loss_arg    <- parse_arg("loss", loss_default)
+use_cv_arg  <- as.logical(parse_arg("use_cv", as.character(use_cv_default)))
+if (has_cv_flag) use_cv_arg <- TRUE
+k_fixed_arg <- as.numeric(parse_arg("k", as.character(k_fixed_default)))
+
+if (is_quick) {
+  cat("========================================================\n")
+  cat("RUNNING IN QUICK / TEST MODE (Reduced Grid & Reps)\n")
+  cat("========================================================\n")
+  MC.simulations          <- 5
+  n_values                <- c(100, 500)
+  shift_k_opts            <- c(2)
+  epsilon                 <- c(0.10)
+  scenarios.contamination <- c("clean", "AO", "IO")
+  innov_dist_opts         <- c("gaussian", "t3")
+  mu_scenarios            <- c("H0", "H1", "H2")
+} else {
+  reps_str        <- parse_arg("reps", Sys.getenv("MC_REPS", "1000"))
+  MC.simulations  <- as.integer(reps_str)
+  
+  n_str           <- parse_arg("n", "100,500,1000,5000")
+  n_values        <- as.integer(strsplit(n_str, ",")[[1]])
+  
+  eps_str         <- parse_arg("epsilon", "0.10")
+  epsilon         <- as.numeric(strsplit(eps_str, ",")[[1]])
+  
+  shift_k_opts    <- c(2)
+  scenarios.contamination <- c("clean", "AO", "IO")
+  innov_dist_opts <- c("gaussian", "t3")
+  mu_scenarios    <- c("H0", "H1", "H2")
+}
+
+# Model ARMA parameters
 ar_params <- c(0.2, -0.1) # AR(2)
 ma_params <- c(0.2)       # MA(1)
-epsilon <- c(0.05)      # Contamination proportion for AO and IO
-# --- Contamination and Model Scenarios ---
-scenarios.contamination <-c("clean", "AO", "IO") # Contamination scenarios
-innov_dist_opts <- c("gaussian", "t3") # Innovation distributions to test
-mu_scenarios <- c("H0", "H1", "H2") # Hypotheses scenarios
 
-# --- 2. Simulation Grid Generation ---
+cat(sprintf("Configuration: Loss = %s | Bandwidth Mode = %s (fixed k = %.2f) | Reps = %d | Epsilon = %s\n",
+            loss_arg, if (use_cv_arg) "Cross-Validation (CV)" else "Fixed Rate",
+            k_fixed_arg, MC.simulations, paste(epsilon, collapse = ",")))
+
+# ------------------------------------------------------------------------------
+# 2. Simulation Grid Generation
+# ------------------------------------------------------------------------------
 
 cat("Generating simulation grid...\n")
 
-# Base grid with parameters that apply to all scenarios
-grid_list <- lapply(MC.simulations, function(m) {
-  expand.grid(
-    iteration = 1:m,
-    MC_level  = m,
-    n         = n_values,
-    ar_params = list(ar_params),
-    ma_params = list(ma_params),
-    hp_scenario = mu_scenarios,
-    percentage_contamination = epsilon,
-    contamination_scenario = scenarios.contamination,
-    innov_dist = innov_dist_opts,
-    shift_k = shift_k_opts,
-    stringsAsFactors = FALSE
-  )
+base_design <- expand.grid(
+  n                        = n_values,
+  ar_params                = list(ar_params),
+  ma_params                = list(ma_params),
+  hp_scenario              = mu_scenarios,
+  percentage_contamination = epsilon,
+  contamination_scenario   = scenarios.contamination,
+  innov_dist               = innov_dist_opts,
+  shift_k                  = shift_k_opts,
+  stringsAsFactors         = FALSE
+)
+
+grid_list <- lapply(1:MC.simulations, function(m) {
+  df <- base_design
+  df$iteration <- m
+  df$MC_level  <- MC.simulations
+  df
 })
 
-# Combine the list of grids into one 
 sim_grid <- do.call(rbind, grid_list)
 
-# --- 3. Parallel Simulation Execution ---
+# ------------------------------------------------------------------------------
+# 3. Single Iteration Worker Function
+# ------------------------------------------------------------------------------
 
-# This function runs one iteration of the simulation for a given parameter set
-run_one <- function(n_val, ar_params, ma_params, innov_dist, shift_k_val, mu_scenario, contamination_scenario, percentage_contamination) {
-  
-  # Generate the time series data based on the specified DGP and parameters
-  ts_data <- ARMA_mu(n = n_val, ar_coeffs = ar_params, ma_coeffs = ma_params,
-                     mu_scenario = mu_scenario, k = shift_k_val,
-                     innov_dist = innov_dist, contamination_scenario = contamination_scenario, 
-                     epsilon = percentage_contamination, gamma = 10)
+run_one <- function(n_val, ar_params, ma_params, innov_dist, shift_k_val,
+                    mu_scenario, contamination_scenario, percentage_contamination,
+                    loss_type = "Welsh", use_cv = FALSE, k_fixed = 0.65) {
 
-                     
-  # FIXED: The true mean at the end of the series (at u=1) reduced to a scalar
+  # 1. Generate the time series data based on specified DGP
+  ts_data <- ARMA_mu(
+    n                      = n_val,
+    ar_coeffs              = ar_params,
+    ma_coeffs              = ma_params,
+    mu_scenario            = mu_scenario,
+    k                      = shift_k_val,
+    innov_dist             = innov_dist,
+    contamination_scenario = contamination_scenario,
+    epsilon                = percentage_contamination,
+    gamma                  = 10
+  )
+
+  # True integrated mean at u = 1
   true_mean_at_end <- (cumsum(ts_data$m_u) / n_val)[n_val]
-  
-  # Estimate the location parameter
-  teta <- get_teta(ts_data$Xt, k = 0.65, c = 4.685)
-  
-  # Calculate the integrated estimators
+
+  # Bandwidth selection: CV or fixed rate
+  if (use_cv) {
+    cv_res   <- cv_optimal_bandwidth_location(ts_data$Xt, loss = loss_type)
+    k_choice <- cv_res$k_opt
+    k_rate   <- cv_res$k_opt_rate
+  } else {
+    k_choice <- k_fixed
+    k_rate   <- if (k_fixed < 1) k_fixed else log(k_fixed) / log(n_val)
+  }
+
+  # Decoupling lag L_n = max(1, floor(0.1 * (log(n))^2))
+  lag_val <- max(1, floor(0.1 * (log(n_val))^2))
+
+  # 2. Standard recursive M-estimator
+  teta <- get_teta(ts_data$Xt, k = k_choice, loss = loss_type)
   int_teta <- cumsum(teta) / n_val
-  int_lin_teta <- int.par.mean(x = ts_data$Xt, teta = teta, k = 0.65, c = 4.685, lag = ceiling(n_val^0.1))
-  
-  # Get the final value of the estimators (at u=1)
-  est_teta_final <- int_teta[n_val]
+
+  # 3. Linearized recursive estimator
+  int_lin_teta <- int.par.mean(
+    x     = ts_data$Xt,
+    teta  = teta,
+    k     = k_choice,
+    lag   = lag_val,
+    loss  = loss_type
+  )
+
+  # Final values at u = 1
+  est_teta_final     <- int_teta[n_val]
   est_lin_teta_final <- int_lin_teta[n_val]
-  
-  # Handle potential non-finite results from estimators
+
   if (!is.finite(est_teta_final)) est_teta_final <- NA
   if (!is.finite(est_lin_teta_final)) est_lin_teta_final <- NA
 
-  # Calculate error and squared error for bias and MSE calculation (Now safely scalar operations)
-  error_teta <- est_teta_final - true_mean_at_end
+  # Calculate error and squared error
+  error_teta     <- est_teta_final - true_mean_at_end
   error_lin_teta <- est_lin_teta_final - true_mean_at_end
-  
-  res <- list()
-  res$error_teta = error_teta
-  res$sq_error_teta = error_teta^2
-  res$error_lin_teta = error_lin_teta
-  res$sq_error_lin_teta = error_lin_teta^2
-  
-  # Return a named list of results
-  return(res)
+
+  list(
+    error_teta        = error_teta,
+    sq_error_teta     = error_teta^2,
+    error_lin_teta    = error_lin_teta,
+    sq_error_lin_teta = error_lin_teta^2,
+    k_choice          = k_choice,
+    k_rate            = k_rate
+  )
 }
 
-# --- Setup and run the parallel computation ---
+# ------------------------------------------------------------------------------
+# 4. Setup and Run Parallel Computation
+# ------------------------------------------------------------------------------
+
 set.seed(123, kind = "L'Ecuyer-CMRG")
-# HPC-aware core detection.
+
+# HPC / Multi-core detection
 cores_str <- Sys.getenv("SLURM_NTASKS")
 if (nchar(cores_str) > 0) {
   cores <- as.integer(cores_str)
   cat("SLURM environment detected. Using allocated cores:", cores, "\n")
 } else {
   cores <- detectCores()
-  cat("SLURM_NTASKS not found. Using all available local cores:", cores, "\n")
+  cat("Using all available local cores:", cores, "\n")
 }
-cl <- makeCluster(cores)
 
+cl <- makeCluster(cores)
 registerDoParallel(cl)
 clusterSetRNGStream(cl, 123)
-clusterExport(cl, c("run_one", "ARMA_mu", "get_teta", "int.par.mean", "tukey_loss_2nd_derivative", "tukey_loss_derivative", "tukey_weight"))
 
-clusterEvalQ(cl, {
-  # Prevent thread explosion on the worker nodes
+# Export functions and configuration to workers
+clusterExport(cl, c(
+  "run_one", "ARMA_mu", "get_teta", "solve_teta", "int.par.mean",
+  "cv_optimal_bandwidth_location",
+  "Welsh.rho", "Welsh.psi", "Welsh.psi.prime", "Welsh.weight",
+  "tukey_weight", "tukey_loss_derivative", "tukey_loss_2nd_derivative",
+  "loss_arg", "use_cv_arg", "k_fixed_arg"
+))
+
+invisible(clusterEvalQ(cl, {
   Sys.setenv(OMP_NUM_THREADS = 1)
   Sys.setenv(OPENBLAS_NUM_THREADS = 1)
   source("DGP.R")
   source("CUSUM.R")
-})
+}))
 
-# ─────────────────────────────────────────────
-# Parallel simulation
-# ─────────────────────────────────────────────
-
-cat("Running", nrow(sim_grid), "simulations across", cores, "cores...\n")
+cat("Running", nrow(sim_grid), "simulation tasks across", cores, "cores...\n")
+t_start <- proc.time()
 
 sim_results <- foreach(
-    row      = iter(sim_grid, by = "row"),
-    .combine = rbind
+  row      = iter(sim_grid, by = "row"),
+  .combine = rbind
 ) %dopar% {
   res <- run_one(
-    n_val = row$n,
-    ar_params = unlist(row$ar_params),
-    ma_params = unlist(row$ma_params),
-    innov_dist = row$innov_dist,
-    shift_k_val = row$shift_k,
-    mu_scenario = row$hp_scenario,
-    contamination_scenario = row$contamination_scenario,
-    percentage_contamination = row$percentage_contamination
-  )
-  data.frame(
-    iteration = row$iteration,
-    replication = row$MC_level,                 
-    scenario = row$hp_scenario,
-    contamination = row$contamination_scenario,
+    n_val                    = row$n,
+    ar_params                = unlist(row$ar_params),
+    ma_params                = unlist(row$ma_params),
+    innov_dist               = row$innov_dist,
+    shift_k_val              = row$shift_k,
+    mu_scenario              = row$hp_scenario,
+    contamination_scenario   = row$contamination_scenario,
     percentage_contamination = row$percentage_contamination,
-    shift_k = row$shift_k,
-    innov_dist = row$innov_dist,
-    n = row$n,
-    ar_params = paste(unlist(row$ar_params), collapse = ","),  
-    ma_params = paste(unlist(row$ma_params), collapse = ","),
-    bias_teta = res[["error_teta"]],             
-    bias_lin_teta = res[["error_lin_teta"]],
-    sq_error_teta = res[["sq_error_teta"]],
-    sq_error_lin_teta = res[["sq_error_lin_teta"]],
-    stringsAsFactors = FALSE
+    loss_type                = loss_arg,
+    use_cv                   = use_cv_arg,
+    k_fixed                  = k_fixed_arg
+  )
+
+  data.frame(
+    iteration                = row$iteration,
+    replication              = row$MC_level,
+    scenario                 = row$hp_scenario,
+    contamination            = row$contamination_scenario,
+    percentage_contamination = row$percentage_contamination,
+    shift_k                  = row$shift_k,
+    innov_dist               = row$innov_dist,
+    n                        = row$n,
+    loss                     = loss_arg,
+    bias_teta                = res[["error_teta"]],
+    bias_lin_teta            = res[["error_lin_teta"]],
+    sq_error_teta            = res[["sq_error_teta"]],
+    sq_error_lin_teta        = res[["sq_error_lin_teta"]],
+    k_rate                   = res[["k_rate"]],
+    stringsAsFactors         = FALSE
   )
 }
 
 stopCluster(cl)
+
+elapsed <- proc.time() - t_start
+cat(sprintf("Computation finished in %.2f seconds.\n", elapsed[3]))
 
 write.csv(sim_results, "sim_results.csv", row.names = FALSE)
 cat("Simulation complete. Results saved to sim_results.csv.\n")

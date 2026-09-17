@@ -1,37 +1,61 @@
 # =============================================================================
-# Robust Recursive M-Estimation and CUSUM Change-Point Testing
+# Robust Recursive M-Estimation and CUSUM Change-Point Testing (Location)
 #
 # Implements:
-#   - Tukey biweight loss, weight, and derivatives
-#   - Recursive robust location estimator (IRLS or Newton-Raphson)
+#   - Welsh (Welsch) and Tukey biweight loss, score, weight, and derivative functions
+#   - Robust scale standardization via normalized MAD
+#   - Single-window M-estimator of location (IRLS or Newton-Raphson)
+#   - Recursive robust location estimator (rolling window with warm-starting)
+#   - Out-of-sample forward Cross-Validation for optimal bandwidth k selection
 #   - Linearized (bias-corrected) recursive estimator
 #   - Robust variance estimation
 #   - CUSUM-type test for change in location, with Monte Carlo critical values
 # =============================================================================
 
 # -----------------------------------------------------------------------------
-# 1. Tukey biweight functions
+# 1. Loss, score, weight, and derivative functions
 # -----------------------------------------------------------------------------
 
+# Welsh (Welsch) functions: rho(u) = 1 - exp(-(u/c)^2)
+Welsh.rho <- function(u, c = 2.985) {
+  1.0 - exp(-(u / c)^2)
+}
+
+#' Welsh psi function (first derivative of rho): psi(u) = u * exp(-(u/c)^2)
+Welsh.psi <- function(u, c = 2.985) {
+  u * exp(-(u / c)^2)
+}
+
+#' Welsh psi prime (second derivative of rho / derivative of psi)
+Welsh.psi.prime <- function(u, c = 2.985) {
+  (1.0 - 2.0 * (u / c)^2) * exp(-(u / c)^2)
+}
+
+#' Welsh weight function: w(u) = psi(u) / u = exp(-(u/c)^2)
+Welsh.weight <- function(u, c = 2.985) {
+  exp(-(u / c)^2)
+}
+
+# Tukey biweight functions
 #' Tukey biweight weight function w(r) = (1 - (r/c)^2)^2 for |r| <= c, else 0
-tukey_weight <- function(r, c) {
+tukey_weight <- function(r, c = 4.685) {
   ifelse(abs(r) <= c,
-         (1 - (r / c)^2)^2,
-         0)
+         (1.0 - (r / c)^2)^2,
+         0.0)
 }
 
 #' Tukey biweight psi function (first derivative of rho): psi(r) = r * w(r)
-tukey_loss_derivative <- function(r, c) {
+tukey_loss_derivative <- function(r, c = 4.685) {
   ifelse(abs(r) <= c,
-         r * (1 - (r / c)^2)^2,
-         0)
+         r * (1.0 - (r / c)^2)^2,
+         0.0)
 }
 
 #' Derivative of psi (used as the Jacobian / weight in Newton steps)
-tukey_loss_2nd_derivative <- function(r, c) {
+tukey_loss_2nd_derivative <- function(r, c = 4.685) {
   ifelse(abs(r) <= c,
-         (1 - (r / c)^2) * (1 - 5 * (r / c)^2),
-         0)
+         (1.0 - (r / c)^2) * (1.0 - 5.0 * (r / c)^2),
+         0.0)
 }
 
 # -----------------------------------------------------------------------------
@@ -40,27 +64,45 @@ tukey_loss_2nd_derivative <- function(r, c) {
 
 #' Solve for the robust location M-estimate on a fixed window of data
 #'
-#' @param x        numeric vector (one window of data)
-#' @param c        Tukey tuning constant
-#' @param method   "IRLS" or "Newton"
-#' @param tol      convergence tolerance
-#' @param max_iter maximum number of iterations
+#' @param x          numeric vector (one window of data)
+#' @param c          tuning constant (default: 2.985 for Welsh, 4.685 for Tukey)
+#' @param loss       loss function: "Welsh", "Tukey", or "L2"
+#' @param method     "IRLS" or "Newton"
+#' @param tol        convergence tolerance
+#' @param max_iter   maximum number of iterations
+#' @param init_theta optional initial value for warm-starting
 #' @return scalar robust location estimate
-solve_teta <- function(x, c = 4.685, method = c("IRLS", "Newton"),
-                        tol = 1e-6, max_iter = 1000) {
+solve_teta <- function(x, c = NULL, loss = c("Welsh", "Tukey", "L2"),
+                       method = c("IRLS", "Newton"),
+                       tol = 1e-6, max_iter = 100, init_theta = NULL) {
 
+  loss <- match.arg(loss)
   method <- match.arg(method)
 
-  # Robust starting value
-  theta_current <- median(x)
+  if (loss == "L2") return(mean(x))
+
+  if (is.null(c)) {
+    c <- if (loss == "Welsh") 2.985 else 4.685
+  }
+
+  weight_fn <- if (loss == "Welsh") Welsh.weight else tukey_weight
+  psi_fn    <- if (loss == "Welsh") Welsh.psi else tukey_loss_derivative
+  psi_p_fn  <- if (loss == "Welsh") Welsh.psi.prime else tukey_loss_2nd_derivative
+
+  # Robust starting value (warm-start if provided)
+  theta_current <- if (!is.null(init_theta) && is.finite(init_theta)) init_theta else median(x)
 
   for (iter in 1:max_iter) {
 
     r <- x - theta_current
+    sigma_hat <- median(abs(r)) / 0.6745
+    if (is.na(sigma_hat) || sigma_hat < 1e-5) sigma_hat <- 1.0
+
+    u <- r / sigma_hat
 
     if (method == "IRLS") {
 
-      w <- tukey_weight(r, c)
+      w <- weight_fn(u, c)
       sum_w <- sum(w)
 
       if (sum_w == 0) {
@@ -72,8 +114,8 @@ solve_teta <- function(x, c = 4.685, method = c("IRLS", "Newton"),
 
     } else if (method == "Newton") {
 
-      H_sum  <- sum(tukey_loss_derivative(r, c))
-      DH_sum <- sum(tukey_loss_2nd_derivative(r, c))
+      H_sum  <- sum(psi_fn(u, c))
+      DH_sum <- sum(psi_p_fn(u, c)) / sigma_hat
 
       if (DH_sum == 0) {
         warning("Newton: Jacobian sum is zero. Algorithm terminated early.")
@@ -83,14 +125,13 @@ solve_teta <- function(x, c = 4.685, method = c("IRLS", "Newton"),
       theta_new <- theta_current + (H_sum / DH_sum)
     }
 
-    if (abs(theta_new - theta_current) < tol) {
+    if (abs(theta_new - theta_current) < tol * max(sigma_hat, 1e-4)) {
       return(theta_new)
     }
 
     theta_current <- theta_new
   }
 
-  warning(paste("Maximum iterations reached without convergence using", method))
   return(theta_current)
 }
 
@@ -102,79 +143,209 @@ solve_teta <- function(x, c = 4.685, method = c("IRLS", "Newton"),
 #' window of size k ending at each time t.
 #'
 #' @param X        numeric data vector
-#' @param k        window size; if k < 1, treated as a proportion of length(X)
-#' @param c        Tukey tuning constant
+#' @param k        window size; if k < 1, treated as a proportion rate of length(X) (e.g. 0.45 or 0.65)
+#' @param c        tuning constant
+#' @param loss     "Welsh", "Tukey", or "L2"
 #' @param method   "IRLS" or "Newton"
 #' @param tol      convergence tolerance
 #' @param max_iter maximum number of iterations
 #' @return numeric vector of length(X), with teta[t] = 0 for t < k
-get_teta <- function(X, k = 0.65, c = 4.685, method = c("IRLS", "Newton"),
-                      tol = 1e-6, max_iter = 1000) {
+get_teta <- function(X, k = 0.45, c = NULL, loss = c("Welsh", "Tukey", "L2"),
+                     method = c("IRLS", "Newton"),
+                     tol = 1e-6, max_iter = 100) {
+
+  loss <- match.arg(loss)
+  method <- match.arg(method)
 
   n_obs <- length(X)
   if (!is.numeric(X)) stop("X must be a numeric vector.")
-  if (k < 1) k <- floor(n_obs^k)
+  if (k < 1) k <- floor(n_obs^k) else k <- floor(k)
+  k <- max(3, k)
 
   teta <- numeric(n_obs)
 
-  for (t in k:n_obs) {
-    teta[t] <- solve_teta(X[(t - k + 1):t], c = c, method = method,
-                           tol = tol, max_iter = max_iter)
+  # Cold start at window k
+  teta[k] <- solve_teta(X[1:k], c = c, loss = loss, method = method,
+                        tol = tol, max_iter = max_iter, init_theta = NULL)
+
+  # Rolling warm-started updates
+  if (k < n_obs) {
+    for (t in (k + 1):n_obs) {
+      teta[t] <- solve_teta(X[(t - k + 1):t], c = c, loss = loss, method = method,
+                            tol = tol, max_iter = max_iter, init_theta = teta[t - 1])
+    }
   }
 
   return(teta)
 }
 
 # -----------------------------------------------------------------------------
+# 3b. Cross-validation for optimal rolling bandwidth k
+# -----------------------------------------------------------------------------
+
+#' Cross-Validation for Optimal Rolling Bandwidth k (Location)
+#'
+#' Evaluates candidate rolling bandwidths using out-of-sample forward evaluation
+#' with decoupling lag L_n = max(1, floor(0.1 * (log(N))^2)):
+#'   Lambda(k) = 1 / (N - k - L_n + 1) * sum_{t=k}^{N - L_n} psi^2((X_{t+L_n} - hat{theta}_t(k)) / sigma_hat)
+#'
+#' @param x       numeric vector (length N)
+#' @param k_grid  candidate bandwidth vector (integers, or rate exponents < 1)
+#' @param lag     decoupling lag L_n (default: floor(0.1 * (log(N))^2))
+#' @param loss    loss function ("Welsh", "Tukey", or "L2")
+#' @param c       loss tuning constant
+#' @return list(k_opt, k_opt_rate, lag, cv_losses, k_grid)
+cv_optimal_bandwidth_location <- function(x, k_grid = NULL, lag = NULL,
+                                          loss = c("Welsh", "Tukey", "L2"), c = NULL) {
+  loss <- match.arg(loss)
+  x <- as.numeric(x)
+  N <- length(x)
+
+  is_l2 <- (loss == "L2")
+  if (is_l2) {
+    c <- 0
+    psi_fn <- function(r, c = NULL) r
+  } else if (is.null(c)) {
+    c <- if (loss == "Welsh") 2.985 else 4.685
+    psi_fn <- if (loss == "Welsh") Welsh.psi else tukey_loss_derivative
+  } else {
+    psi_fn <- if (loss == "Welsh") Welsh.psi else tukey_loss_derivative
+  }
+
+  # Decoupling lag L_n = max(1, floor(0.1 * (log(N))^2))
+  if (is.null(lag)) {
+    lag <- max(1, floor(0.1 * (log(N))^2))
+  } else if (lag < 1) {
+    lag <- max(1, ceiling(N^lag))
+  }
+
+  # Default search grid: [N^0.35, N^0.65] with 5 candidate evaluation points
+  if (is.null(k_grid)) {
+    k_min  <- max(5, floor(N^0.35))
+    k_max  <- min(floor(N - lag - 2), floor(N^0.65))
+    k_grid <- unique(pmax(5, floor(seq(k_min, k_max, length.out = 5))))
+  } else {
+    k_grid <- sapply(k_grid, function(kv) if (kv < 1) floor(N^kv) else floor(kv))
+    k_grid <- unique(pmax(5, k_grid))
+  }
+
+  cv_losses <- numeric(length(k_grid))
+  names(cv_losses) <- paste0("k=", k_grid)
+
+  # Robust residual scale for score standardization
+  global_sig <- median(abs(x - median(x))) / 0.6745
+  if (is.na(global_sig) || global_sig < 1e-5) global_sig <- 1.0
+
+  for (i in seq_along(k_grid)) {
+    k_val <- k_grid[i]
+    teta_k <- get_teta(x, k = k_val, c = c, loss = loss)
+
+    t_start <- k_val
+    t_end   <- N - lag
+
+    if (t_start <= t_end) {
+      t_eval  <- t_start:t_end
+      fut_idx <- t_eval + lag
+
+      r_fut    <- x[fut_idx] - teta_k[t_eval]
+      psi_vals <- if (is_l2) r_fut else psi_fn(r_fut / global_sig, c)
+
+      cv_losses[i] <- mean(psi_vals^2)
+    } else {
+      cv_losses[i] <- Inf
+    }
+  }
+
+  best_idx  <- which.min(cv_losses)
+  best_k    <- k_grid[best_idx]
+  best_rate <- log(best_k) / log(N)
+
+  return(list(
+    k_opt      = best_k,
+    k_opt_rate = round(best_rate, 4),
+    lag        = lag,
+    cv_losses  = round(cv_losses, 4),
+    k_grid     = k_grid
+  ))
+}
+
+# -----------------------------------------------------------------------------
 # 4. Linearized (bias-corrected) recursive estimator
 # -----------------------------------------------------------------------------
 
-#' Linearized one-step-ahead update of the recursive M-estimator.
+#' Linearized one-step-ahead update of the recursive location M-estimator.
 #'
 #' At each t, starts from the PILOT estimate teta[t - lag] (which does NOT
 #' contain x[t]) and applies a single Newton correction using x[t]. This
-#' avoids double-counting x[t]'s influence (it must not already be baked
-#' into the estimate being corrected).
+#' avoids double-counting x[t]'s influence and eliminates the first-order
+#' smoothing/transition bias of the rolling estimator.
 #'
 #' @param x    numeric data vector
 #' @param teta recursive M-estimate from get_teta()
-#' @param k    window size (proportion or absolute)
-#' @param c    Tukey tuning constant
-#' @param lag  forward lag for the "future" observation used in the correction
+#' @param k    window size (rate exponent if < 1, or absolute integer)
+#' @param c    tuning constant
+#' @param lag  forward lag for future observation (default: max(1, floor(0.1 * (log(N))^2)))
+#' @param loss "Welsh", "Tukey", or "L2"
 #' @return numeric vector: cumulative mean of the linearized estimates
+int.par.mean <- function(x, teta, k, c = NULL, lag = NULL, loss = c("Welsh", "Tukey", "L2")) {
 
-int.par.mean <- function(x, teta, k, c = 4.685, lag = 1) {
-
+  loss <- match.arg(loss)
   n_obs <- length(x)
   if (!is.numeric(x)) stop("x must be a numeric vector.")
 
-  if (k < 1) k <- floor(n_obs^k)
+  if (k < 1) k <- floor(n_obs^k) else k <- floor(k)
   if (k < 1) stop("Window size 'k' must be at least 1.")
+
+  if (is.null(lag)) {
+    lag <- max(1, floor(0.1 * (log(n_obs))^2))
+  } else if (lag < 1) {
+    lag <- max(1, ceiling(n_obs^lag))
+  }
+
+  is_l2 <- (loss == "L2")
+  if (is_l2) {
+    c <- 0
+    psi_fn <- function(r, c = NULL) r
+    psi_p_fn <- function(r, c = NULL) rep(1, length(r))
+  } else if (is.null(c)) {
+    c <- if (loss == "Welsh") 2.985 else 4.685
+    psi_fn <- if (loss == "Welsh") Welsh.psi else tukey_loss_derivative
+    psi_p_fn <- if (loss == "Welsh") Welsh.psi.prime else tukey_loss_2nd_derivative
+  } else {
+    psi_fn <- if (loss == "Welsh") Welsh.psi else tukey_loss_derivative
+    psi_p_fn <- if (loss == "Welsh") Welsh.psi.prime else tukey_loss_2nd_derivative
+  }
 
   Lin.teta <- numeric(n_obs)
 
   # Loop starts at k + lag (full historical window) and runs to n_obs
   ws <- k + lag
   for (t in ws:n_obs) {
+    pilot <- teta[t - lag]
 
     # 1. Historical window for the Jacobian, using the PILOT estimate teta[t - lag]
     start_idx <- max(1, t - k - lag + 1)
     end_idx   <- t - lag
-    r_hist <- x[start_idx:end_idx] - teta[t - lag]
-    DH_rob_loc <- mean(tukey_loss_2nd_derivative(r_hist, c))
+    r_hist <- x[start_idx:end_idx] - pilot
 
-    if (DH_rob_loc == 0) {
-      warning(paste("Jacobian is zero at t =", t, "- Skipping to prevent division by zero."))
-      next
+    if (is_l2) {
+      DH_rob_loc <- 1.0
+      r_future <- x[t] - pilot
+      H_future <- r_future
+    } else {
+      sigma_hat <- median(abs(r_hist)) / 0.6745
+      if (is.na(sigma_hat) || sigma_hat < 1e-5) sigma_hat <- 1.0
+
+      DH_rob_loc <- mean(psi_p_fn(r_hist / sigma_hat, c)) / sigma_hat
+      if (is.na(DH_rob_loc) || DH_rob_loc < 1e-4) DH_rob_loc <- 1e-4
+
+      # 2. Newton correction using the FUTURE observation x[t], relative to pilot
+      r_future <- x[t] - pilot
+      H_future <- psi_fn(r_future / sigma_hat, c)
     }
 
-    # 2. Newton correction using the FUTURE observation x[t], relative to the pilot
-    future_obs <- x[t]
-    r_future <- future_obs - teta[t - lag]
-    H_future <- tukey_loss_derivative(r_future, c)
-
     # 3. Linearized estimator: pilot + one-step Newton correction
-    Lin.teta[t] <- teta[t - lag] + (DH_rob_loc^-1 * H_future)
+    Lin.teta[t] <- pilot + (H_future / DH_rob_loc)
   }
 
   return(cumsum(Lin.teta) / n_obs)
@@ -188,29 +359,67 @@ int.par.mean <- function(x, teta, k, c = 4.685, lag = 1) {
 #'
 #' @param x     numeric data vector
 #' @param teta  recursive M-estimate from get_teta()
-#' @param k     window size (proportion or absolute)
+#' @param k     window size (rate exponent if < 1, or absolute integer)
 #' @param block block size for aggregating the variance contribution
 #' @param lag   lag between parameter estimate and evaluation block
+#' @param c     tuning constant
+#' @param loss  "Welsh", "Tukey", or "L2"
 #' @return numeric vector: cumulative integrated variance process Q_n(u)
-var.est.mean <- function(x, teta, k = 0.65, block = 1, lag = 1) {
+var.est.mean <- function(x, teta, k = 0.45, block = NULL, lag = NULL, c = NULL,
+                         loss = c("Welsh", "Tukey", "L2")) {
 
+  loss <- match.arg(loss)
   N <- length(x)
-  if (k < 1) k <- floor(N^k)
+  if (k < 1) k <- floor(N^k) else k <- floor(k)
+
+  if (is.null(lag)) lag <- max(1, floor(0.1 * (log(N))^2))
+  if (lag < 1) lag <- max(1, ceiling(N^lag))
+
+  if (is.null(block)) block <- max(1, floor(0.1 * (log(N))^2))
+  if (block < 1) block <- max(1, ceiling(N^block))
+
+  is_l2 <- (loss == "L2")
+  if (is_l2) {
+    c <- 0
+    psi_fn <- function(r, c = NULL) r
+    psi_p_fn <- function(r, c = NULL) rep(1, length(r))
+  } else if (is.null(c)) {
+    c <- if (loss == "Welsh") 2.985 else 4.685
+    psi_fn <- if (loss == "Welsh") Welsh.psi else tukey_loss_derivative
+    psi_p_fn <- if (loss == "Welsh") Welsh.psi.prime else tukey_loss_2nd_derivative
+  } else {
+    psi_fn <- if (loss == "Welsh") Welsh.psi else tukey_loss_derivative
+    psi_p_fn <- if (loss == "Welsh") Welsh.psi.prime else tukey_loss_2nd_derivative
+  }
+
   cutoff <- k + block + lag
   q_sq <- numeric(N)
 
   for (t in cutoff:N) {
 
-    # Parameter estimate from the past, to ensure (near) independence
+    # Parameter estimate from the past, ensuring near-independence
     param_idx <- t - lag - block
     teta_t_lag <- teta[param_idx]
 
     ws <- max(1, param_idx - k + 1)
     X_window <- x[ws:param_idx]
-    DH <- mean(tukey_loss_2nd_derivative(X_window - teta_t_lag, c = 4.685))
-    DH_inv <- 1 / DH
+    r_win <- X_window - teta_t_lag
 
-    H_val_block <- tukey_loss_derivative(x[(t - block + 1):t] - teta_t_lag, c = 4.685)
+    if (is_l2) {
+      DH_inv <- 1.0
+      H_val_block <- x[(t - block + 1):t] - teta_t_lag
+    } else {
+      sigma_hat <- median(abs(r_win)) / 0.6745
+      if (is.na(sigma_hat) || sigma_hat < 1e-5) sigma_hat <- 1.0
+
+      DH <- mean(psi_p_fn(r_win / sigma_hat, c)) / sigma_hat
+      if (is.na(DH) || DH < 1e-4) DH <- 1e-4
+      DH_inv <- 1 / DH
+
+      r_block <- x[(t - block + 1):t] - teta_t_lag
+      H_val_block <- psi_fn(r_block / sigma_hat, c)
+    }
+
     q_par <- -DH_inv * sum(H_val_block)
     q_sq[t] <- q_par^2
   }
@@ -232,38 +441,42 @@ var.est.mean <- function(x, teta, k = 0.65, block = 1, lag = 1) {
 #' @param lag         forward lag used in the linearized estimator
 #' @param block       block size for the variance estimate
 #' @param cutoff      minimum starting index for the test statistic
-#' @param k           window size (proportion or absolute)
-#' @param c           Tukey tuning constant
+#' @param k           window size (proportion rate or absolute integer)
+#' @param c           tuning constant
+#' @param loss        "Welsh", "Tukey", or "L2"
 #' @param MC          number of Monte Carlo replications for critical values
 #' @param linearized  use the linearized (bias-corrected) estimator if TRUE
 #' @param plotting    produce a diagnostic plot if TRUE
 #' @return list(p_value, test_stat, max_index)
-CUSUM.mean <- function(x, teta = NULL, lag = 1, block = 1, cutoff = 1,
-                        k = 0.65, c = 4.685, MC = 1000,
-                        linearized = TRUE, plotting = FALSE) {
+CUSUM.mean <- function(x, teta = NULL, lag = NULL, block = NULL, cutoff = 1,
+                       k = 0.45, c = NULL, loss = c("Welsh", "Tukey", "L2"),
+                       MC = 1000, linearized = TRUE, plotting = FALSE) {
 
+  loss <- match.arg(loss)
   N <- length(x)
 
-  Check.cutoff <- N^k + lag + block
+  if (k < 1) k_win <- floor(N^k) else k_win <- floor(k)
+  if (is.null(lag)) lag <- max(1, floor(0.1 * (log(N))^2))
+  if (is.null(block)) block <- max(1, floor(0.1 * (log(N))^2))
+
+  Check.cutoff <- k_win + lag + block
   if (cutoff < Check.cutoff) cutoff <- Check.cutoff
 
   # If teta is not provided, compute it (main parameter estimation step)
-  if (is.null(teta)) teta <- get_teta(x, k = k, c = c)
-
-  N <- length(teta)
+  if (is.null(teta)) teta <- get_teta(x, k = k, c = c, loss = loss)
 
   if (linearized) {
-    Mn <- int.par.mean(x = x, teta = teta, k = k, c = c, lag = lag)
+    Mn <- int.par.mean(x = x, teta = teta, k = k, c = c, lag = lag, loss = loss)
   } else {
     Mn <- cumsum(teta) / N
   }
 
-  Qn <- var.est.mean(x = x, teta = teta, k = k, block = block, lag = lag)
+  Qn <- var.est.mean(x = x, teta = teta, k = k, block = block, lag = lag, c = c, loss = loss)
   qn <- diff(c(0, Qn))
 
   Tu <- sqrt(N) * (Mn[(cutoff + 1):N] -
                      (1:(N - cutoff)) / (N - cutoff) * Mn[length(Mn)])
-  Tu <- c(rep(0, cutoff), Tu)   # length now matches N (was cutoff + 1 before)
+  Tu <- c(rep(0, cutoff), Tu)
 
   Z <- max(abs(Tu))
   max_index <- which.max(abs(Tu))
@@ -293,37 +506,3 @@ CUSUM.mean <- function(x, teta = NULL, lag = 1, block = 1, cutoff = 1,
   res <- list(p_value = mean(Z.mc > Z), test_stat = Z, max_index = max_index)
   return(res)
 }
-
-# =============================================================================
-# Example usage
-# =============================================================================
-# set.seed(42)
-# X <- rnorm(1000, mean = 2)
-# X <- c(X, rnorm(1000, mean = 2))
-#
-# # Add random (heavy) outliers
-# outlier_indices <- rbinom(length(X), 1, 0.05) == 1
-# X[outlier_indices] <- X[outlier_indices] * 10
-#
-# plot(X, type = "l", main = "Simulated Data with Outliers", ylab = "X", xlab = "Time")
-#
-# teta <- get_teta(X, k = 0.65, c = 4.685, max_iter = 100)
-# lin_teta_example <- int.par.mean(x = X, teta = teta, k = 0.65, lag = 1)
-#
-# plot(cumsum(teta) / length(teta), type = "l",
-#      main = "Standard Estimator", ylab = "teta", xlab = "Time")
-# plot(lin_teta_example, type = "l",
-#      main = "Linearized Estimator", ylab = "Lin.teta", xlab = "Time")
-#
-# loc.NW <- ksmooth(1:length(X), X, kernel = "box", bandwidth = 100)$y
-# plot(loc.NW, type = "l", main = "Nadaraya-Watson Estimator", ylab = "NW Estimate", xlab = "Time")
-#
-# b <- 10
-# var_est_example <- var.est.mean(x = X, teta = teta, k = 0.65, block = b, lag = 1)
-# plot(var_est_example, type = "l", main = "Variance Estimate", ylab = "Q_n(u)", xlab = "Time")
-#
-# result <- CUSUM.mean(x = X, teta = teta, lag = 1, block = b, cutoff = 1,
-#                       k = 0.65, c = 4.685, MC = 1000, plotting = TRUE)
-# p_value   <- result$p_value
-# test_stat <- result$test_stat
-# max_index <- result$max_index

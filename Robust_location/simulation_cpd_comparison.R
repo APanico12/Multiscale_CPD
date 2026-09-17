@@ -1,0 +1,257 @@
+# ==============================================================================
+# Simulation Study: Robust Change-Point Detection Comparison in Location
+# Comparing:
+#   1. Our Proposed Linearized CUSUM test with Welsh score function (Our_Welsh)
+#   2. Two-sample Hodges-Lehmann test (Hodges_Lehmann via robcp::hl_test)
+#   3. Huberized CUSUM test (Huber_CUSUM via robcp::huber_cusum)
+#   4. Wilcoxon-Mann-Whitney test (Wilcoxon via robcp::wmw_test)
+#
+# Design:
+#   - Hypotheses: H0 (Size), H1 (Abrupt shift), H2 (Gradual shift)
+#   - Sample sizes: n in {200, 500, 1000}
+#   - Scenarios: Clean, AO (Additive Outliers), IO (Innovation Outliers)
+#   - Innovations: Gaussian and Student-t3
+# ==============================================================================
+
+required_pkgs <- c("doParallel", "foreach", "parallel", "robcp")
+missing_pkgs  <- required_pkgs[!sapply(required_pkgs, requireNamespace, quietly = TRUE)]
+
+if (length(missing_pkgs) > 0) {
+  stop(sprintf("\n[ERROR] Missing required R package(s): %s\nPlease install them from the login node via:\n  Rscript -e 'install.packages(c(%s), repos=\"https://cloud.r-project.org\")'\n",
+               paste(missing_pkgs, collapse = ", "),
+               paste(sprintf('"%s"', missing_pkgs), collapse = ", ")))
+}
+
+suppressPackageStartupMessages({
+  library(doParallel)
+  library(foreach)
+  library(parallel)
+  library(robcp)
+})
+
+# Source required local functions
+source("DGP.R")
+source("CUSUM.R")
+
+# ------------------------------------------------------------------------------
+# 1. Configuration & Command Line Argument Parsing
+# ------------------------------------------------------------------------------
+
+args <- commandArgs(trailingOnly = TRUE)
+is_quick <- any(c("--quick", "--test", "-q") %in% args)
+
+parse_arg <- function(arg_name, default_val) {
+  match_idx <- grep(paste0("^--", arg_name, "="), args)
+  if (length(match_idx) > 0) {
+    val_str <- sub(paste0("^--", arg_name, "="), "", args[match_idx[1]])
+    return(val_str)
+  }
+  return(default_val)
+}
+
+if (is_quick) {
+  cat("========================================================\n")
+  cat("RUNNING IN QUICK / TEST MODE (Reduced Grid & Reps)\n")
+  cat("========================================================\n")
+  MC_reps                 <- 5
+  n_values                <- c(200, 500)
+  shift_mag               <- 1.25
+  epsilon                 <- 0.05
+  scenarios_contamination <- c("clean", "AO", "IO")
+  innov_dists             <- c("gaussian", "t3")
+  hp_scenarios            <- c("H0", "H1", "H2")
+  mc_cusum_reps           <- 100
+} else {
+  reps_str                <- parse_arg("reps", Sys.getenv("MC_REPS", "500"))
+  MC_reps                 <- as.integer(reps_str)
+  
+  n_str                   <- parse_arg("n", "200,500,1000")
+  n_values                <- as.integer(strsplit(n_str, ",")[[1]])
+  
+  eps_str                 <- parse_arg("epsilon", "0.05")
+  epsilon                 <- as.numeric(eps_str)
+  
+  shift_str               <- parse_arg("shift", "1.25")
+  shift_mag               <- as.numeric(shift_str)
+  
+  scenarios_contamination <- c("clean", "AO", "IO")
+  innov_dists             <- c("gaussian", "t3")
+  hp_scenarios            <- c("H0", "H1", "H2")
+  mc_cusum_reps           <- 200
+  b_str                   <- parse_arg("B", "200")
+  mc_cusum_reps           <- as.integer(b_str)
+}
+
+# ARMA parameters
+ar_params <- c(0.2, -0.1) # AR(2)
+ma_params <- c(0.2)       # MA(1)
+
+cat(sprintf("Configuration: Reps = %d | Sample sizes = %s | Shift = %.2f | Epsilon = %.2f\n",
+            MC_reps, paste(n_values, collapse = ","), shift_mag, epsilon))
+cat(sprintf("Configuration: Reps = %d | Sample sizes = %s | Shift = %.2f | Epsilon = %.2f | B (CUSUM draws) = %d\n",
+            MC_reps, paste(n_values, collapse = ","), shift_mag, epsilon, mc_cusum_reps))
+
+# ------------------------------------------------------------------------------
+# 2. Build Simulation Grid
+# ------------------------------------------------------------------------------
+
+cat("Building simulation grid...\n")
+
+base_design <- expand.grid(
+  n             = n_values,
+  hp_scenario   = hp_scenarios,
+  contamination = scenarios_contamination,
+  innov_dist    = innov_dists,
+  epsilon       = epsilon,
+  shift_k       = shift_mag,
+  stringsAsFactors = FALSE
+)
+
+grid_list <- lapply(1:MC_reps, function(m) {
+  df <- base_design
+  df$iteration <- m
+  df
+})
+
+sim_grid <- do.call(rbind, grid_list)
+
+# Randomize row order to balance core loads across workers
+set.seed(42)
+sim_grid <- sim_grid[sample(nrow(sim_grid)), ]
+rownames(sim_grid) <- NULL
+
+cat(sprintf("Total simulation tasks: %d (%d design settings x %d reps)\n",
+            nrow(sim_grid), nrow(base_design), MC_reps))
+
+# ------------------------------------------------------------------------------
+# 3. Worker Function: Run All 4 Tests on the Same Data Stream
+# ------------------------------------------------------------------------------
+
+run_one_comparison <- function(n_val, hp_scenario, contamination, innov_dist,
+                               epsilon_val, shift_val, ar_p, ma_p, b_cusum) {
+
+  # 1. Generate data according to design
+  ts_data <- ARMA_mu(
+    n                      = n_val,
+    ar_coeffs              = ar_p,
+    ma_coeffs              = ma_p,
+    mu_scenario            = hp_scenario,
+    k                      = shift_val,
+    innov_dist             = innov_dist,
+    contamination_scenario = contamination,
+    epsilon                = epsilon_val,
+    gamma                  = 10
+  )
+  
+  x <- ts_data$Xt
+
+  # 2. Test 1: Our Proposed Linearized CUSUM test with Welsh score function
+  rej_our <- tryCatch({
+    res <- CUSUM.mean(x = x, loss = "Welsh", k = 0.45, MC = b_cusum, linearized = TRUE)
+    as.integer(res$p_value < 0.05)
+  }, error = function(e) NA_integer_)
+
+  # 3. Test 2: Two-sample Hodges-Lehmann test (robcp::hl_test)
+  rej_hl <- tryCatch({
+    res <- robcp::hl_test(x)
+    as.integer(res$p.value < 0.05)
+  }, error = function(e) NA_integer_)
+
+  # 4. Test 3: Huberized CUSUM test (robcp::huber_cusum)
+  rej_huber <- tryCatch({
+    res <- robcp::huber_cusum(x, fun = "HLm")
+    as.integer(res$p.value < 0.05)
+  }, error = function(e) NA_integer_)
+
+  # 5. Test 4: Wilcoxon-Mann-Whitney test (robcp::wmw_test)
+  rej_wmw <- tryCatch({
+    res <- robcp::wmw_test(x, h = 1L)
+    as.integer(res$p.value < 0.05)
+  }, error = function(e) NA_integer_)
+
+  list(
+    rej_our   = rej_our,
+    rej_hl    = rej_hl,
+    rej_huber = rej_huber,
+    rej_wmw   = rej_wmw
+  )
+}
+
+# ------------------------------------------------------------------------------
+# 4. Parallel Setup and Execution
+# ------------------------------------------------------------------------------
+
+set.seed(123, kind = "L'Ecuyer-CMRG")
+
+cores_str <- Sys.getenv("SLURM_NTASKS")
+if (nchar(cores_str) > 0) {
+  cores <- as.integer(cores_str)
+  cat("SLURM environment detected. Using allocated cores:", cores, "\n")
+} else {
+  cores <- detectCores()
+  cat("Using all available local cores:", cores, "\n")
+}
+
+cl <- makeCluster(cores)
+registerDoParallel(cl)
+clusterSetRNGStream(cl, 123)
+
+clusterExport(cl, c(
+  "run_one_comparison", "ARMA_mu", "CUSUM.mean", "get_teta", "solve_teta",
+  "int.par.mean", "var.est.mean",
+  "Welsh.rho", "Welsh.psi", "Welsh.psi.prime", "Welsh.weight",
+  "tukey_weight", "tukey_loss_derivative", "tukey_loss_2nd_derivative",
+  "ar_params", "ma_params", "mc_cusum_reps"
+))
+
+invisible(clusterEvalQ(cl, {
+  Sys.setenv(OMP_NUM_THREADS = 1)
+  Sys.setenv(OPENBLAS_NUM_THREADS = 1)
+  suppressPackageStartupMessages(library(robcp))
+  source("DGP.R")
+  source("CUSUM.R")
+}))
+
+cat("Running parallel simulation across", cores, "cores...\n")
+t_start <- proc.time()
+
+results_list <- foreach(
+  row      = iter(sim_grid, by = "row"),
+  .combine = rbind
+) %dopar% {
+  res <- run_one_comparison(
+    n_val         = row$n,
+    hp_scenario   = row$hp_scenario,
+    contamination = row$contamination,
+    innov_dist    = row$innov_dist,
+    epsilon_val   = row$epsilon,
+    shift_val     = row$shift_k,
+    ar_p          = ar_params,
+    ma_p          = ma_params,
+    b_cusum       = mc_cusum_reps
+  )
+
+  data.frame(
+    iteration     = row$iteration,
+    hp_scenario   = row$hp_scenario,
+    contamination = row$contamination,
+    innov_dist    = row$innov_dist,
+    n             = row$n,
+    rej_our       = res$rej_our,
+    rej_hl        = res$rej_hl,
+    rej_huber     = res$rej_huber,
+    rej_wmw       = res$rej_wmw,
+    stringsAsFactors = FALSE
+  )
+}
+
+stopCluster(cl)
+
+elapsed <- (proc.time() - t_start)[3]
+cat(sprintf("Simulation finished in %.2f seconds (%.2f minutes).\n", elapsed, elapsed / 60))
+
+# Save raw replication data
+write.csv(results_list, "sim_results_cpd_comparison.csv", row.names = FALSE)
+cat("Saved raw simulation results to sim_results_cpd_comparison.csv\n")
+
+

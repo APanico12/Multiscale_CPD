@@ -40,9 +40,4 @@ export MKL_NUM_THREADS=1
 # Rscript -e 'if (!requireNamespace("ggplot2", quietly=TRUE)) install.packages("ggplot2", repos="https://cloud.r-project.org")'
 Rscript simulation_power.R "$@"
 
-# # Automated post-processing: generate LaTeX tables and 2x4 matrix figures
-# echo "Generating LaTeX tables and publication figures..."
-# Rscript read_sim_res_power.R
-# Rscript read_sim_res_size.R
-# Rscript plot_power_matrix.R
-# echo "Post-processing complete! All outputs successfully generated."
+
