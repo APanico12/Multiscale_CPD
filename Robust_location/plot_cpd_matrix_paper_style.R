@@ -135,7 +135,7 @@ plot_cpd_matrix_paper_style <- function(csv_file = "sim_summary_cpd_comparison.c
   # Sample sizes and scaling
   n_vals <- sort(unique(df$n))
   # Point size scaling: open circles without fill that grow larger as n increases
-  base_cexs   <- c("200" = 1.3, "500" = 2.1, "1000" = 3.0, "5000" = 4.0)
+  base_cexs   <- c("200" = 1.3, "500" = 2.1, "700" = 2.6, "1000" = 3.0, "5000" = 4.0)
   cex_mapping <- setNames(seq(1.3, by = 0.8, length.out = length(n_vals)), as.character(n_vals))
   for (nv_str in names(base_cexs)) {
     if (nv_str %in% names(cex_mapping)) cex_mapping[nv_str] <- base_cexs[nv_str]
@@ -287,6 +287,14 @@ plot_cpd_matrix_paper_style <- function(csv_file = "sim_summary_cpd_comparison.c
 
     dev.off()
     cat(sprintf("Saved: %s\n", out_name))
+  }
+
+  # Copy PDF to paper img directory if directory exists
+  paper_img_dir <- file.path("..", "paper", "img")
+  if (dir.exists(paper_img_dir) && file.exists(paste0(output_prefix, ".pdf"))) {
+    dest <- file.path(paper_img_dir, paste0(output_prefix, ".pdf"))
+    file.copy(paste0(output_prefix, ".pdf"), dest, overwrite = TRUE)
+    cat(sprintf("Copied %s.pdf to %s\n", output_prefix, dest))
   }
 }
 

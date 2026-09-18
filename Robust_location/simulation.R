@@ -36,17 +36,13 @@ parse_arg <- function(arg_name, default_val) {
 }
 
 # --- PRIMARY CONTROLS ---
-# Set use_cv_default to TRUE if you want CV by default when running without arguments
 use_cv_default  <- FALSE  # Set to TRUE to enable Cross-Validation, or use --use_cv=TRUE or --cv
 loss_default    <- "Welsh" # "Welsh" or "Tukey"
 k_fixed_default <- 0.65   # Bandwidth rate exponent when use_cv is FALSE (e.g. 0.65 -> k = floor(n^0.65))
 
-loss_arg    <- parse_arg("loss", loss_default)
-use_cv_arg  <- as.logical(parse_arg("use_cv", as.character(use_cv_default)))
 loss_arg         <- parse_arg("loss", loss_default)
 use_cv_arg       <- as.logical(parse_arg("use_cv", as.character(use_cv_default)))
 if (has_cv_flag) use_cv_arg <- TRUE
-k_fixed_arg <- as.numeric(parse_arg("k", as.character(k_fixed_default)))
 k_fixed_arg      <- as.numeric(parse_arg("k", as.character(k_fixed_default)))
 var_scenario_arg <- parse_arg("var_scenario", "i")
 shift_arg        <- as.numeric(parse_arg("shift", "0.5"))
@@ -57,7 +53,6 @@ if (is_quick) {
   cat("========================================================\n")
   MC.simulations          <- 5
   n_values                <- c(100, 500)
-  shift_k_opts            <- c(2)
   shift_k_opts            <- c(shift_arg)
   epsilon                 <- c(0.10)
   scenarios.contamination <- c("clean", "AO", "IO")
@@ -73,7 +68,6 @@ if (is_quick) {
   eps_str         <- parse_arg("epsilon", "0.10")
   epsilon         <- as.numeric(strsplit(eps_str, ",")[[1]])
   
-  shift_k_opts    <- c(2)
   shift_k_opts    <- c(shift_arg)
   scenarios.contamination <- c("clean", "AO", "IO")
   innov_dist_opts <- c("gaussian", "t3")
@@ -84,10 +78,8 @@ if (is_quick) {
 ar_params <- c(0.2, -0.1) # AR(2)
 ma_params <- c(0.2)       # MA(1)
 
-cat(sprintf("Configuration: Loss = %s | Bandwidth Mode = %s (fixed k = %.2f) | Reps = %d | Epsilon = %s\n",
 cat(sprintf("Configuration: Loss = %s | Bandwidth Mode = %s (fixed k = %.2f) | Var Scenario = %s | Shift = %.2f | Reps = %d | Epsilon = %s\n",
             loss_arg, if (use_cv_arg) "Cross-Validation (CV)" else "Fixed Rate",
-            k_fixed_arg, MC.simulations, paste(epsilon, collapse = ",")))
             k_fixed_arg, var_scenario_arg, shift_arg, MC.simulations, paste(epsilon, collapse = ",")))
 
 # ------------------------------------------------------------------------------
@@ -124,7 +116,6 @@ sim_grid <- do.call(rbind, grid_list)
 
 run_one <- function(n_val, ar_params, ma_params, innov_dist, shift_k_val,
                     mu_scenario, contamination_scenario, percentage_contamination,
-                    loss_type = "Welsh", use_cv = FALSE, k_fixed = 0.65) {
                     var_scenario = "i", loss_type = "Welsh", use_cv = FALSE, k_fixed = 0.65) {
 
   # 1. Generate the time series data based on specified DGP
