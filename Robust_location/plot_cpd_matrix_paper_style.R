@@ -11,37 +11,52 @@
 #                  * H = Huberized CUSUM
 #                  * W = Wilcoxon-Mann-Whitney
 #                  * T = Two-sample Hodges-Lehmann
-#              - Points for different sample sizes n (marker size grows with n)
+#              - Color represents Heteroskedasticity Scenarios:
+#                  * Scenario (i) Smooth trending variance (Deep Blue)
+#                  * Scenario (ii) Cyclic variance (Forest Green)
+#                  * Scenario (iii) Abrupt break variance (Crimson Red)
+#              - Points for different sample sizes n (open circles scaling with n)
+#              - Horizontal dodge so variance scenario markers do not occlude each other
 #              - Dashed line at nominal alpha = 0.05
 #              - Style matching plot_power_matrix.R for journal publication
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
-# 5. Summarize Empirical Rejection Rates (Size and Power)
+# 1. Summarize Empirical Rejection Rates (Size and Power)
 # ------------------------------------------------------------------------------
-df <- read.csv("sim_results_cpd_comparison.csv", stringsAsFactors = FALSE)
-suppressPackageStartupMessages({
-  library(dplyr)
-  library(tidyr)
-})
+if (file.exists("sim_results_cpd_comparison.csv")) {
+  df_raw <- read.csv("sim_results_cpd_comparison.csv", stringsAsFactors = FALSE)
+  suppressPackageStartupMessages({
+    library(dplyr)
+    library(tidyr)
+  })
 
-summary_df <- df %>%
-  group_by(hp_scenario, contamination, innov_dist, n) %>%
-  summarise(
-    reps         = n(),
-    rate_our     = mean(rej_our, na.rm = TRUE),
-    rate_hl      = mean(rej_hl, na.rm = TRUE),
-    rate_huber   = mean(rej_huber, na.rm = TRUE),
-    rate_wmw     = mean(rej_wmw, na.rm = TRUE),
-    .groups      = "drop"
-  )
+  if (!"var_scenario" %in% names(df_raw)) {
+    df_raw$var_scenario <- "i"
+  }
 
-write.csv(summary_df, "sim_summary_cpd_comparison.csv", row.names = FALSE)
-cat("Saved summary rates to sim_summary_cpd_comparison.csv\n")
+  summary_df <- df_raw %>%
+    group_by(hp_scenario, contamination, innov_dist, var_scenario, n) %>%
+    summarise(
+      reps         = n(),
+      rate_our     = mean(rej_our, na.rm = TRUE),
+      rate_hl      = mean(rej_hl, na.rm = TRUE),
+      rate_huber   = mean(rej_huber, na.rm = TRUE),
+      rate_wmw     = mean(rej_wmw, na.rm = TRUE),
+      .groups      = "drop"
+    )
 
+  write.csv(summary_df, "sim_summary_cpd_comparison.csv", row.names = FALSE)
+  cat("Saved summary rates to sim_summary_cpd_comparison.csv\n")
+}
+
+# ------------------------------------------------------------------------------
+# 2. Main Publication Plotting Function
+# ------------------------------------------------------------------------------
 
 plot_cpd_matrix_paper_style <- function(csv_file = "sim_summary_cpd_comparison.csv",
-                                        output_prefix = "cpd_comparison_matrix") {
+                                        output_prefix = "cpd_comparison_matrix",
+                                        dodge = 0.16) {
 
   if (!file.exists(csv_file)) {
     raw_file <- "sim_results_cpd_comparison.csv"
@@ -50,7 +65,8 @@ plot_cpd_matrix_paper_style <- function(csv_file = "sim_summary_cpd_comparison.c
     }
     cat(sprintf("Aggregating raw '%s'...\n", raw_file))
     raw_df <- read.csv(raw_file, stringsAsFactors = FALSE)
-    df <- aggregate(cbind(rej_our, rej_hl, rej_huber, rej_wmw) ~ hp_scenario + contamination + innov_dist + n,
+    if (!"var_scenario" %in% names(raw_df)) raw_df$var_scenario <- "i"
+    df <- aggregate(cbind(rej_our, rej_hl, rej_huber, rej_wmw) ~ hp_scenario + contamination + innov_dist + var_scenario + n,
                     data = raw_df, FUN = function(x) round(mean(x, na.rm = TRUE), 4))
     names(df)[names(df) == "rej_our"]   <- "rate_our"
     names(df)[names(df) == "rej_hl"]    <- "rate_hl"
@@ -58,14 +74,19 @@ plot_cpd_matrix_paper_style <- function(csv_file = "sim_summary_cpd_comparison.c
     names(df)[names(df) == "rej_wmw"]   <- "rate_wmw"
   } else {
     df <- read.csv(csv_file, stringsAsFactors = FALSE)
+    if (!"var_scenario" %in% names(df)) df$var_scenario <- "i"
   }
 
   cat(sprintf("Loaded data with %d rows.\n", nrow(df)))
 
-  # Standardize casing
+  # Standardize casing & alias mapping
   df$hp_scenario   <- toupper(df$hp_scenario)
   df$contamination <- tolower(df$contamination)
   df$innov_dist    <- tolower(df$innov_dist)
+  df$var_scenario  <- tolower(as.character(df$var_scenario))
+  df$var_scenario  <- ifelse(df$var_scenario %in% c("i", "trending", "smooth", "exp"), "i",
+                      ifelse(df$var_scenario %in% c("ii", "cyclic", "sin"), "ii",
+                      ifelse(df$var_scenario %in% c("iii", "break", "abrupt"), "iii", df$var_scenario)))
 
   # Layout configurations
   row_scenarios <- c("clean", "ao", "io")
@@ -90,6 +111,26 @@ plot_cpd_matrix_paper_style <- function(csv_file = "sim_summary_cpd_comparison.c
   x_all   <- c(x_gauss, x_t3)
   x_ticks <- c(x_gauss, x_t3)
   x_tick_labels <- c(test_labels, test_labels)
+
+  # Heteroskedasticity Scenarios setup: colors and dodging
+  var_scenarios_order <- c("i", "ii", "iii")
+  var_colors <- c(
+    "i"   = "#1565c0", # Scenario (i) Smooth trending (Deep Blue)
+    "ii"  = "#2e7d32", # Scenario (ii) Cyclic (Forest Green)
+    "iii" = "#c62828"  # Scenario (iii) Abrupt break (Crimson Red)
+  )
+
+  present_vars <- var_scenarios_order[var_scenarios_order %in% unique(df$var_scenario)]
+  if (length(present_vars) == 0) present_vars <- unique(df$var_scenario)
+
+  # Compute horizontal offsets for dodge
+  if (length(present_vars) <= 1 || dodge <= 0) {
+    var_offsets <- setNames(rep(0, length(present_vars)), present_vars)
+  } else if (length(present_vars) == 2) {
+    var_offsets <- setNames(c(-dodge * 0.7, dodge * 0.7), present_vars)
+  } else {
+    var_offsets <- c("i" = -dodge, "ii" = 0, "iii" = dodge)
+  }
 
   # Sample sizes and scaling
   n_vals <- sort(unique(df$n))
@@ -155,32 +196,70 @@ plot_cpd_matrix_paper_style <- function(csv_file = "sim_summary_cpd_comparison.c
         mtext(expression(bold(t[3])), side = 3, line = 0.35, at = 7.5, cex = 1.45, font = 2, col = "black")
 
         # Plot data points for Gaussian (left: x = 1:4) and t3 (right: x = 6:9)
-        # Using open circles without fill (pch = 1); larger circles drawn first
+        # Circles colored by variance scenario, size scaled with sample size n
         for (inn_idx in 1:2) {
           inn_name <- if (inn_idx == 1) c("gaussian", "normal") else c("t3", "student-t")
           x_base   <- if (inn_idx == 1) x_gauss else x_t3
 
-          sub_df <- df[df$hp_scenario == cur_hp &
-                       df$contamination == cur_contam &
-                       df$innov_dist %in% inn_name, ]
+          for (v_scen in present_vars) {
+            v_offset <- if (v_scen %in% names(var_offsets)) var_offsets[[v_scen]] else 0
+            v_col    <- if (v_scen %in% names(var_colors)) var_colors[[v_scen]] else "blue4"
+            x_pts_scen <- x_base + v_offset
 
-          if (nrow(sub_df) > 0) {
-            # Draw larger n first so smaller open circles sit neatly inside them
-            for (i in rev(seq_along(n_vals))) {
-              nv <- n_vals[i]
-              row_n <- sub_df[sub_df$n == nv, ]
+            sub_df <- df[df$hp_scenario == cur_hp &
+                         df$contamination == cur_contam &
+                         df$innov_dist %in% inn_name &
+                         df$var_scenario == v_scen, ]
 
-              if (nrow(row_n) > 0) {
-                y_pts <- as.numeric(row_n[1, test_cols])
+            if (nrow(sub_df) > 0) {
+              # Draw larger n first so smaller open circles sit neatly inside them
+              for (i in rev(seq_along(n_vals))) {
+                nv <- n_vals[i]
+                row_n <- sub_df[sub_df$n == nv, ]
 
-                points(x = x_base, y = y_pts,
-                       pch = 1,              # Open circle without fill
-                       col = "blue4",        # Single color
-                       cex = cex_mapping[as.character(nv)],
-                       lwd = 1.8)
+                if (nrow(row_n) > 0) {
+                  y_pts <- as.numeric(row_n[1, test_cols])
+
+                  points(x = x_pts_scen, y = y_pts,
+                         pch = 1,              # Open circle without fill
+                         col = v_col,          # Color according to variance scenario
+                         cex = cex_mapping[as.character(nv)],
+                         lwd = 1.8)
+                }
               }
             }
           }
+        }
+
+        # In Panel (Row 1, Col 1) [H0: Clean], add clear informative legends in empty top area
+        if (row_idx == 1 && col_idx == 1) {
+          # Legend 1: Variance Scenarios (Colors) on top-left (Gaussian half)
+          legend("topleft",
+                 legend = c(expression(sigma[(i)] ~ "(Trending)"),
+                            expression(sigma[(ii)] ~ "(Cyclic)"),
+                            expression(sigma[(iii)] ~ "(Break)")),
+                 col    = c("#1565c0", "#2e7d32", "#c62828"),
+                 pch    = 1,
+                 pt.lwd = 2.0,
+                 pt.cex = 1.6,
+                 bty    = "o",
+                 box.col= "gray85",
+                 bg     = "white",
+                 cex    = 1.05,
+                 inset  = c(0.02, 0.04))
+
+          # Legend 2: Sample sizes (Circle radii) on top-right (t3 half)
+          legend("topright",
+                 legend = paste("n =", n_vals),
+                 col    = "gray30",
+                 pch    = 1,
+                 pt.lwd = 2.0,
+                 pt.cex = cex_mapping[as.character(n_vals)],
+                 bty    = "o",
+                 box.col= "gray85",
+                 bg     = "white",
+                 cex    = 1.05,
+                 inset  = c(0.02, 0.04))
         }
 
         # X-axis with tick labels (L H W T | L H W T) - matching power curve tick size

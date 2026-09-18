@@ -17,15 +17,26 @@
 #' @param gamma Numeric, for "IO" (Innovation Outliers) it's the scale parameter for the Cauchy distribution of outliers.
 #'        For "AO" (Additive Outliers) it's the fixed value to be added when an outlier occurs.
 #'
+#' @param var_scenario String, the heteroskedasticity scenario for scale σ(u).
+#'        One of:
+#'        - "i" (or "trending"): Smooth trending variance σ(u) = exp(u / 2)
+#'        - "ii" (or "cyclic"): Cyclic variance σ(u) = 1 + sin(2 * pi * u)
+#'        - "iii" (or "break"): Abrupt variance break σ(u) = 0.5 * I(u <= 0.5) + 1.0 * I(u > 0.5)
+#'        - "constant" (or "none"): Homoskedastic σ(u) = 1.0
+#'
 #' @return A list containing:
 #'         - Xt: The generated time series (numeric vector).
 #'         - m_u: The true local expected value m(u) (numeric vector).
 #'         - mu_u: The time-varying intercept μ(u) (numeric vector).
 ARMA_mu <- function(n, ar_coeffs = NULL, ma_coeffs = NULL, mu_scenario = "H0", k = 1,
                     innov_dist = "gaussian", contamination_scenario = "clean",
+#'         - sigma_u: The time-varying scale σ(u) (numeric vector).
+ARMA_mu <- function(n, ar_coeffs = NULL, ma_coeffs = NULL, mu_scenario = "H0", k = 0.5,
+                    var_scenario = "i", innov_dist = "gaussian", contamination_scenario = "clean",
                     epsilon = 0.05, gamma = 10) {
 
   # 1. Generate the time-varying intercept mu(u)
+  # 1. Generate the time-varying intercept mu(u) and scale sigma(u)
   u <- (1:n) / n
   mu_u <- numeric(n)
   if (mu_scenario == "H1") {
@@ -34,11 +45,27 @@ ARMA_mu <- function(n, ar_coeffs = NULL, ma_coeffs = NULL, mu_scenario = "H0", k
     mu_u <- k * u
   }
 
+  # Scale function sigma(u) under the 3 heteroskedasticity scenarios
+  var_scen <- tolower(as.character(var_scenario))
+  if (var_scen %in% c("i", "trending", "smooth", "exp")) {
+    sigma_u <- exp(u / 2)
+  } else if (var_scen %in% c("ii", "cyclic", "sin")) {
+    sigma_u <- 1 + sin(2 * pi * u)
+  } else if (var_scen %in% c("iii", "break", "abrupt")) {
+    sigma_u <- ifelse(u <= 0.5, 0.5, 1.0)
+  } else if (var_scen %in% c("none", "constant", "homoskedastic")) {
+    sigma_u <- rep(1.0, n)
+  } else {
+    warning(sprintf("Unknown variance scenario '%s', defaulting to scenario (i).", var_scenario))
+    sigma_u <- exp(u / 2)
+  }
+
   # 2. Calculate the true local expected value m(u)
   sum_ar <- if (!is.null(ar_coeffs)) sum(ar_coeffs) else 0
   m_u <- mu_u / (1 - sum_ar)
 
   # 3. Generate innovations
+  # 3. Generate white noise innovations
   if (innov_dist == "gaussian") {
     innovations <- rnorm(n)
   } else if (innov_dist == "t3") {
@@ -54,6 +81,9 @@ ARMA_mu <- function(n, ar_coeffs = NULL, ma_coeffs = NULL, mu_scenario = "H0", k
     innovations <- innovations + It * gamma * Xi 
   }
 
+  # Scale innovations by time-varying scale sigma(u)
+  scaled_innovations <- sigma_u * innovations
+
   # 5. Simulate the ARMA(p,q) process
   p <- if (!is.null(ar_coeffs)) length(ar_coeffs) else 0
   q <- if (!is.null(ma_coeffs)) length(ma_coeffs) else 0
@@ -61,6 +91,7 @@ ARMA_mu <- function(n, ar_coeffs = NULL, ma_coeffs = NULL, mu_scenario = "H0", k
   
   # Pad innovations and Xt for easier indexing
   padded_innovations <- c(rep(0, q), innovations)
+  padded_innovations <- c(rep(0, q), scaled_innovations)
   padded_Xt <- c(rep(0, p), Xt)
 
   for (t in 1:n) {
@@ -68,6 +99,7 @@ ARMA_mu <- function(n, ar_coeffs = NULL, ma_coeffs = NULL, mu_scenario = "H0", k
     ma_term <- if (q > 0) sum(ma_coeffs * padded_innovations[(t+q-1):(t)]) else 0
     
     # The model is defined with +epsilon_t and +b_k*epsilon_{t-k}
+    # Equation: X_{t,n} = mu(u) + sum(a_j * X_{t-j}) + sigma(u)*e_t + sum(b_k * sigma(u_k)*e_{t-k})
     padded_Xt[t + p] <- mu_u[t] + ar_term + padded_innovations[t + q] + ma_term
   }
   Xt <- padded_Xt[(p+1):(n+p)]
@@ -80,6 +112,7 @@ ARMA_mu <- function(n, ar_coeffs = NULL, ma_coeffs = NULL, mu_scenario = "H0", k
   }
 
   return(list(Xt = Xt, m_u = m_u, mu_u = mu_u))
+  return(list(Xt = Xt, m_u = m_u, mu_u = mu_u, sigma_u = sigma_u))
 }
 
 # # Example Usage:

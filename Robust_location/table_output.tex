@@ -1,117 +1,74 @@
-
-> cat("\\begin{table}[ht]\n")
 \begin{table}[ht]
-
-> cat("\\centering\n")
 \centering
-
-> cat("\\caption{Standard Deviation and Bias of $\\widehat{\\Theta}_n^{\\text{lin}}(1)$ and $\\widetilde{\\Theta}_n(1)$ as estimators of $\\int_0^1 m( ..." ... [TRUNCATED] 
 \caption{Standard Deviation and Bias of $\widehat{\Theta}_n^{\text{lin}}(1)$ and $\widetilde{\Theta}_n(1)$ as estimators of $\int_0^1 m(u)du$ under structural breaks and data contamination. Values based on Monte Carlo replications.}
-
-> cat("\\label{tab:robust_location_bias}\n")
 \label{tab:robust_location_bias}
-
-> cat("\\resizebox{\\textwidth}{!}{\n")
 \resizebox{\textwidth}{!}{
-
-> cat("\\begin{tabular}{clllcc|cc|cc|cc}\n")
 \begin{tabular}{clllcc|cc|cc|cc}
-
-> cat("\\toprule\n")
 \toprule
-
-> cat("& & & & \\multicolumn{2}{c}{$n=100$} & \\multicolumn{2}{c}{$n=500$} & \\multicolumn{2}{c}{$n=1000$} & \\multicolumn{2}{c}{$n=5000$} \\\\\n")
 & & & & \multicolumn{2}{c}{$n=100$} & \multicolumn{2}{c}{$n=500$} & \multicolumn{2}{c}{$n=1000$} & \multicolumn{2}{c}{$n=5000$} \\
-
-> cat("\\cmidrule(lr){5-6} \\cmidrule(lr){7-8} \\cmidrule(lr){9-10} \\cmidrule(lr){11-12}\n")
 \cmidrule(lr){5-6} \cmidrule(lr){7-8} \cmidrule(lr){9-10} \cmidrule(lr){11-12}
-
-> cat("\\textbf{Hypothesis} & \\textbf{Scenario} & \\textbf{Innovations} & \\textbf{Metric} & $\\widetilde{\\Theta}_n$ & $\\widehat{\\Theta}_n^{\\text ..." ... [TRUNCATED] 
 \textbf{Hypothesis} & \textbf{Scenario} & \textbf{Innovations} & \textbf{Metric} & $\widetilde{\Theta}_n$ & $\widehat{\Theta}_n^{\text{lin}}$ & $\widetilde{\Theta}_n$ & $\widehat{\Theta}_n^{\text{lin}}$ & $\widetilde{\Theta}_n$ & $\widehat{\Theta}_n^{\text{lin}}$ & $\widetilde{\Theta}_n$ & $\widehat{\Theta}_n^{\text{lin}}$ \\
-
-> cat("\\midrule\n")
 \midrule
-
-> # Dictionaries for matching layout order
-> scenarios <- c("H0" = "\\mathcal{H}_0 \\text{ (No Shift)}", 
-+                "H1" = "\\mathcal{H}_1 \\te ..." ... [TRUNCATED] 
-
-> conts <- c("clean" = "Clean", "AO" = "AO", "IO" = "IO")
-
-> inns  <- c("gaussian" = "Gaussian", "t3" = "$t_3$")
-
-> # Iterate logically through the structure
-> for (sc in names(scenarios)) {
-+   cat(sprintf("%% --- %s Section ---\n", sc))
-+   cat(sprintf("\\multir ..." ... [TRUNCATED] 
 % --- H0 Section ---
 \multirow{12}{*}{$\mathcal{H}_0 \text{ (No Shift)}$}
-& \multirow{4}{*}{Clean} & \multirow{2}{*}{Gaussian} & SD & 0.129 & 0.135 & 0.056 & 0.056 & 0.040 & 0.041 & 0.019 & 0.019 \\
-& & & Bias & -0.002 & -0.005 & -0.004 & -0.004 & 0.001 & 0.001 & 0.000 & 0.000 \\
+& \multirow{4}{*}{Clean} & \multirow{2}{*}{Gaussian} & SD & 0.148 & 0.198 & 0.071 & 0.085 & - & - & - & - \\
+& & & Bias & -0.074 & -0.063 & -0.027 & -0.018 & - & - & - & - \\
 \cmidrule{3-12}
-& & \multirow{2}{*}{$t_3$} & SD & 0.163 & 0.162 & 0.071 & 0.071 & 0.052 & 0.052 & 0.023 & 0.023 \\
-& & & Bias & -0.009 & -0.007 & 0.002 & 0.002 & -0.003 & -0.003 & -0.000 & -0.000 \\
+& & \multirow{2}{*}{$t_3$} & SD & 0.215 & 0.237 & 0.100 & 0.116 & - & - & - & - \\
+& & & Bias & 0.054 & 0.085 & 0.024 & 0.010 & - & - & - & - \\
 \cmidrule{2-12}
-& \multirow{4}{*}{AO} & \multirow{2}{*}{Gaussian} & SD & 0.132 & 0.136 & 0.059 & 0.060 & 0.044 & 0.045 & 0.019 & 0.020 \\
-& & & Bias & -0.004 & -0.002 & 0.000 & 0.000 & 0.001 & 0.001 & -0.000 & -0.001 \\
+& \multirow{4}{*}{AO} & \multirow{2}{*}{Gaussian} & SD & 0.099 & 0.150 & 0.101 & 0.114 & - & - & - & - \\
+& & & Bias & 0.031 & 0.021 & -0.047 & -0.063 & - & - & - & - \\
 \cmidrule{3-12}
-& & \multirow{2}{*}{$t_3$} & SD & 0.179 & 0.174 & 0.080 & 0.079 & 0.056 & 0.057 & 0.025 & 0.025 \\
-& & & Bias & -0.002 & -0.004 & 0.000 & -0.000 & -0.001 & -0.001 & 0.001 & 0.001 \\
+& & \multirow{2}{*}{$t_3$} & SD & 0.204 & 0.127 & 0.129 & 0.140 & - & - & - & - \\
+& & & Bias & -0.126 & -0.097 & -0.043 & -0.049 & - & - & - & - \\
 \cmidrule{2-12}
-& \multirow{4}{*}{IO} & \multirow{2}{*}{Gaussian} & SD & 0.212 & 0.173 & 0.074 & 0.072 & 0.050 & 0.049 & 0.023 & 0.023 \\
-& & & Bias & 0.001 & -0.004 & 0.005 & 0.003 & 0.001 & 0.000 & 0.000 & 0.000 \\
+& \multirow{4}{*}{IO} & \multirow{2}{*}{Gaussian} & SD & 0.154 & 0.194 & 0.075 & 0.080 & - & - & - & - \\
+& & & Bias & -0.013 & -0.009 & 0.009 & 0.007 & - & - & - & - \\
 \cmidrule{3-12}
-& & \multirow{2}{*}{$t_3$} & SD & 0.250 & 0.225 & 0.105 & 0.099 & 0.070 & 0.067 & 0.031 & 0.031 \\
-& & & Bias & 0.003 & 0.002 & 0.000 & 0.000 & -0.001 & 0.001 & -0.000 & -0.000 \\
+& & \multirow{2}{*}{$t_3$} & SD & 0.166 & 0.209 & 0.057 & 0.055 & - & - & - & - \\
+& & & Bias & -0.197 & -0.181 & -0.072 & -0.099 & - & - & - & - \\
 \midrule
 % --- H1 Section ---
 \multirow{12}{*}{$\mathcal{H}_1 \text{ (Abrupt)}$}
-& \multirow{4}{*}{Clean} & \multirow{2}{*}{Gaussian} & SD & 0.137 & 0.134 & 0.062 & 0.060 & 0.042 & 0.041 & 0.019 & 0.019 \\
-& & & Bias & -0.114 & -0.038 & -0.054 & -0.004 & -0.042 & -0.006 & -0.018 & -0.001 \\
+& \multirow{4}{*}{Clean} & \multirow{2}{*}{Gaussian} & SD & 0.185 & 0.163 & 0.056 & 0.044 & - & - & - & - \\
+& & & Bias & -0.113 & -0.054 & 0.025 & 0.066 & - & - & - & - \\
 \cmidrule{3-12}
-& & \multirow{2}{*}{$t_3$} & SD & 0.167 & 0.165 & 0.079 & 0.076 & 0.056 & 0.053 & 0.026 & 0.025 \\
-& & & Bias & -0.130 & -0.027 & -0.073 & -0.007 & -0.057 & -0.008 & -0.025 & -0.002 \\
+& & \multirow{2}{*}{$t_3$} & SD & 0.178 & 0.199 & 0.054 & 0.043 & - & - & - & - \\
+& & & Bias & -0.027 & -0.028 & 0.014 & 0.030 & - & - & - & - \\
 \cmidrule{2-12}
-& \multirow{4}{*}{AO} & \multirow{2}{*}{Gaussian} & SD & 0.146 & 0.145 & 0.067 & 0.064 & 0.045 & 0.045 & 0.019 & 0.019 \\
-& & & Bias & -0.125 & -0.032 & -0.059 & -0.005 & -0.044 & -0.005 & -0.019 & -0.002 \\
+& \multirow{4}{*}{AO} & \multirow{2}{*}{Gaussian} & SD & 0.273 & 0.137 & 0.094 & 0.093 & - & - & - & - \\
+& & & Bias & -0.029 & -0.024 & -0.022 & 0.022 & - & - & - & - \\
 \cmidrule{3-12}
-& & \multirow{2}{*}{$t_3$} & SD & 0.195 & 0.182 & 0.083 & 0.082 & 0.063 & 0.059 & 0.026 & 0.024 \\
-& & & Bias & -0.156 & -0.032 & -0.078 & -0.005 & -0.057 & -0.002 & -0.026 & -0.002 \\
+& & \multirow{2}{*}{$t_3$} & SD & 0.074 & 0.115 & 0.101 & 0.107 & - & - & - & - \\
+& & & Bias & 0.023 & 0.027 & 0.009 & 0.019 & - & - & - & - \\
 \cmidrule{2-12}
-& \multirow{4}{*}{IO} & \multirow{2}{*}{Gaussian} & SD & 0.216 & 0.184 & 0.082 & 0.076 & 0.055 & 0.052 & 0.025 & 0.023 \\
-& & & Bias & -0.164 & -0.030 & -0.086 & -0.006 & -0.060 & -0.003 & -0.024 & -0.001 \\
+& \multirow{4}{*}{IO} & \multirow{2}{*}{Gaussian} & SD & 0.232 & 0.111 & 0.055 & 0.043 & - & - & - & - \\
+& & & Bias & -0.007 & -0.065 & 0.026 & 0.041 & - & - & - & - \\
 \cmidrule{3-12}
-& & \multirow{2}{*}{$t_3$} & SD & 0.280 & 0.240 & 0.106 & 0.101 & 0.073 & 0.071 & 0.034 & 0.032 \\
-& & & Bias & -0.178 & -0.030 & -0.099 & -0.006 & -0.074 & -0.007 & -0.035 & -0.003 \\
+& & \multirow{2}{*}{$t_3$} & SD & 0.458 & 0.188 & 0.074 & 0.110 & - & - & - & - \\
+& & & Bias & -0.153 & -0.189 & 0.048 & 0.060 & - & - & - & - \\
 \midrule
 % --- H2 Section ---
 \multirow{12}{*}{$\mathcal{H}_2 \text{ (Gradual)}$}
-& \multirow{4}{*}{Clean} & \multirow{2}{*}{Gaussian} & SD & 0.138 & 0.133 & 0.064 & 0.060 & 0.044 & 0.041 & 0.021 & 0.019 \\
-& & & Bias & -0.151 & -0.055 & -0.099 & -0.015 & -0.079 & -0.007 & -0.047 & -0.002 \\
+& \multirow{4}{*}{Clean} & \multirow{2}{*}{Gaussian} & SD & 0.144 & 0.185 & 0.074 & 0.081 & - & - & - & - \\
+& & & Bias & -0.083 & -0.050 & -0.074 & -0.058 & - & - & - & - \\
 \cmidrule{3-12}
-& & \multirow{2}{*}{$t_3$} & SD & 0.165 & 0.160 & 0.079 & 0.075 & 0.053 & 0.051 & 0.026 & 0.024 \\
-& & & Bias & -0.166 & -0.054 & -0.110 & -0.021 & -0.081 & -0.006 & -0.048 & -0.002 \\
+& & \multirow{2}{*}{$t_3$} & SD & 0.205 & 0.319 & 0.064 & 0.073 & - & - & - & - \\
+& & & Bias & -0.183 & -0.165 & -0.097 & -0.068 & - & - & - & - \\
 \cmidrule{2-12}
-& \multirow{4}{*}{AO} & \multirow{2}{*}{Gaussian} & SD & 0.138 & 0.136 & 0.063 & 0.059 & 0.047 & 0.043 & 0.021 & 0.019 \\
-& & & Bias & -0.153 & -0.046 & -0.101 & -0.014 & -0.083 & -0.010 & -0.049 & -0.004 \\
+& \multirow{4}{*}{AO} & \multirow{2}{*}{Gaussian} & SD & 0.212 & 0.250 & 0.062 & 0.056 & - & - & - & - \\
+& & & Bias & 0.060 & 0.046 & -0.027 & -0.009 & - & - & - & - \\
 \cmidrule{3-12}
-& & \multirow{2}{*}{$t_3$} & SD & 0.177 & 0.166 & 0.082 & 0.080 & 0.058 & 0.055 & 0.027 & 0.025 \\
-& & & Bias & -0.179 & -0.057 & -0.105 & -0.013 & -0.086 & -0.012 & -0.052 & -0.005 \\
+& & \multirow{2}{*}{$t_3$} & SD & 0.324 & 0.449 & 0.095 & 0.096 & - & - & - & - \\
+& & & Bias & 0.004 & 0.126 & -0.117 & -0.089 & - & - & - & - \\
 \cmidrule{2-12}
-& \multirow{4}{*}{IO} & \multirow{2}{*}{Gaussian} & SD & 0.207 & 0.179 & 0.079 & 0.073 & 0.052 & 0.049 & 0.024 & 0.023 \\
-& & & Bias & -0.182 & -0.054 & -0.104 & -0.011 & -0.088 & -0.010 & -0.049 & -0.002 \\
+& \multirow{4}{*}{IO} & \multirow{2}{*}{Gaussian} & SD & 0.571 & 0.326 & 0.062 & 0.048 & - & - & - & - \\
+& & & Bias & 0.117 & 0.297 & -0.013 & -0.012 & - & - & - & - \\
 \cmidrule{3-12}
-& & \multirow{2}{*}{$t_3$} & SD & 0.272 & 0.233 & 0.099 & 0.094 & 0.071 & 0.067 & 0.033 & 0.032 \\
-& & & Bias & -0.176 & -0.055 & -0.113 & -0.018 & -0.092 & -0.011 & -0.052 & -0.004 \\
+& & \multirow{2}{*}{$t_3$} & SD & 0.434 & 0.305 & 0.143 & 0.145 & - & - & - & - \\
+& & & Bias & -0.091 & 0.000 & -0.067 & -0.010 & - & - & - & - \\
 \bottomrule
-
-> cat("\\end{tabular}\n")
 \end{tabular}
-
-> cat("}\n")
 }
-
-> cat("\\end{table}\n")
 \end{table}
-
-> sink()

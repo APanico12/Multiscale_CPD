@@ -43,8 +43,13 @@ k_fixed_default <- 0.65   # Bandwidth rate exponent when use_cv is FALSE (e.g. 0
 
 loss_arg    <- parse_arg("loss", loss_default)
 use_cv_arg  <- as.logical(parse_arg("use_cv", as.character(use_cv_default)))
+loss_arg         <- parse_arg("loss", loss_default)
+use_cv_arg       <- as.logical(parse_arg("use_cv", as.character(use_cv_default)))
 if (has_cv_flag) use_cv_arg <- TRUE
 k_fixed_arg <- as.numeric(parse_arg("k", as.character(k_fixed_default)))
+k_fixed_arg      <- as.numeric(parse_arg("k", as.character(k_fixed_default)))
+var_scenario_arg <- parse_arg("var_scenario", "i")
+shift_arg        <- as.numeric(parse_arg("shift", "0.5"))
 
 if (is_quick) {
   cat("========================================================\n")
@@ -53,6 +58,7 @@ if (is_quick) {
   MC.simulations          <- 5
   n_values                <- c(100, 500)
   shift_k_opts            <- c(2)
+  shift_k_opts            <- c(shift_arg)
   epsilon                 <- c(0.10)
   scenarios.contamination <- c("clean", "AO", "IO")
   innov_dist_opts         <- c("gaussian", "t3")
@@ -68,6 +74,7 @@ if (is_quick) {
   epsilon         <- as.numeric(strsplit(eps_str, ",")[[1]])
   
   shift_k_opts    <- c(2)
+  shift_k_opts    <- c(shift_arg)
   scenarios.contamination <- c("clean", "AO", "IO")
   innov_dist_opts <- c("gaussian", "t3")
   mu_scenarios    <- c("H0", "H1", "H2")
@@ -78,8 +85,10 @@ ar_params <- c(0.2, -0.1) # AR(2)
 ma_params <- c(0.2)       # MA(1)
 
 cat(sprintf("Configuration: Loss = %s | Bandwidth Mode = %s (fixed k = %.2f) | Reps = %d | Epsilon = %s\n",
+cat(sprintf("Configuration: Loss = %s | Bandwidth Mode = %s (fixed k = %.2f) | Var Scenario = %s | Shift = %.2f | Reps = %d | Epsilon = %s\n",
             loss_arg, if (use_cv_arg) "Cross-Validation (CV)" else "Fixed Rate",
             k_fixed_arg, MC.simulations, paste(epsilon, collapse = ",")))
+            k_fixed_arg, var_scenario_arg, shift_arg, MC.simulations, paste(epsilon, collapse = ",")))
 
 # ------------------------------------------------------------------------------
 # 2. Simulation Grid Generation
@@ -92,6 +101,7 @@ base_design <- expand.grid(
   ar_params                = list(ar_params),
   ma_params                = list(ma_params),
   hp_scenario              = mu_scenarios,
+  var_scenario             = var_scenario_arg,
   percentage_contamination = epsilon,
   contamination_scenario   = scenarios.contamination,
   innov_dist               = innov_dist_opts,
@@ -115,6 +125,7 @@ sim_grid <- do.call(rbind, grid_list)
 run_one <- function(n_val, ar_params, ma_params, innov_dist, shift_k_val,
                     mu_scenario, contamination_scenario, percentage_contamination,
                     loss_type = "Welsh", use_cv = FALSE, k_fixed = 0.65) {
+                    var_scenario = "i", loss_type = "Welsh", use_cv = FALSE, k_fixed = 0.65) {
 
   # 1. Generate the time series data based on specified DGP
   ts_data <- ARMA_mu(
@@ -123,6 +134,7 @@ run_one <- function(n_val, ar_params, ma_params, innov_dist, shift_k_val,
     ma_coeffs              = ma_params,
     mu_scenario            = mu_scenario,
     k                      = shift_k_val,
+    var_scenario           = var_scenario,
     innov_dist             = innov_dist,
     contamination_scenario = contamination_scenario,
     epsilon                = percentage_contamination,
@@ -231,6 +243,7 @@ sim_results <- foreach(
     mu_scenario              = row$hp_scenario,
     contamination_scenario   = row$contamination_scenario,
     percentage_contamination = row$percentage_contamination,
+    var_scenario             = row$var_scenario,
     loss_type                = loss_arg,
     use_cv                   = use_cv_arg,
     k_fixed                  = k_fixed_arg
@@ -243,6 +256,7 @@ sim_results <- foreach(
     contamination            = row$contamination_scenario,
     percentage_contamination = row$percentage_contamination,
     shift_k                  = row$shift_k,
+    var_scenario             = row$var_scenario,
     innov_dist               = row$innov_dist,
     n                        = row$n,
     loss                     = loss_arg,

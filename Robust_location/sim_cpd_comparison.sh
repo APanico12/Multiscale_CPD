@@ -8,7 +8,7 @@
 #SBATCH --partition=cpu
 #SBATCH --qos=cpu
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=60
+#SBATCH --ntasks-per-node=64
 #SBATCH --time=0-48:00:00
 #SBATCH --mem=120G
 
@@ -26,14 +26,8 @@ export MKL_NUM_THREADS=1
 
 # Execute parallel Monte Carlo simulation for CPD Comparison
 # Default: 500 reps, n in {200, 500, 1000}, epsilon = 0.05, shift = 1.25
-Rscript simulation_cpd_comparison.R --reps=500 --n=200,500,1000 --epsilon=0.05 --shift=1.25 "$@"
+#Rscript simulation_cpd_comparison.R --reps=500 --n=200,500,1000 --epsilon=0.05 --shift=1.25 "$@"
+# Default: 500 reps, n in {200, 500, 700}, epsilon = 0.05, shift = 0.5, var_scenarios = i,ii,iii
+Rscript simulation_cpd_comparison.R --reps=500 --n=200,500,700 --epsilon=0.05 --shift=0.5 --var_scenarios=i,ii,iii "$@
 
-# # Generate the 3x3 publication-style matrix plots
-# Rscript plot_cpd_matrix_paper_style.R
-# Rscript plot_cpd_comparison.R
-# Automatically generate publication-style matrix plots upon completion
-echo "Simulation finished. Generating publication figures..."
-Rscript plot_cpd_matrix_paper_style.R
-Rscript plot_cpd_comparison.R
-echo "All figures generated successfully."
 

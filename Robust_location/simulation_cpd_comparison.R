@@ -55,11 +55,14 @@ if (is_quick) {
   cat("========================================================\n")
   MC_reps                 <- 5
   n_values                <- c(200, 500)
-  shift_mag               <- 1.25
+  shift_str               <- parse_arg("shift", "0.5")
+  shift_mag               <- as.numeric(shift_str)
   epsilon                 <- 0.05
   scenarios_contamination <- c("clean", "AO", "IO")
   innov_dists             <- c("gaussian", "t3")
   hp_scenarios            <- c("H0", "H1", "H2")
+  var_scenarios_str       <- parse_arg("var_scenarios", "i,ii,iii")
+  var_scenarios           <- strsplit(var_scenarios_str, ",")[[1]]
   mc_cusum_reps           <- 100
 } else {
   reps_str                <- parse_arg("reps", Sys.getenv("MC_REPS", "500"))
@@ -71,13 +74,14 @@ if (is_quick) {
   eps_str                 <- parse_arg("epsilon", "0.05")
   epsilon                 <- as.numeric(eps_str)
   
-  shift_str               <- parse_arg("shift", "1.25")
+  shift_str               <- parse_arg("shift", "0.5")
   shift_mag               <- as.numeric(shift_str)
   
   scenarios_contamination <- c("clean", "AO", "IO")
   innov_dists             <- c("gaussian", "t3")
   hp_scenarios            <- c("H0", "H1", "H2")
-  mc_cusum_reps           <- 200
+  var_scenarios_str       <- parse_arg("var_scenarios", "i,ii,iii")
+  var_scenarios           <- strsplit(var_scenarios_str, ",")[[1]]
   b_str                   <- parse_arg("B", "200")
   mc_cusum_reps           <- as.integer(b_str)
 }
@@ -86,10 +90,8 @@ if (is_quick) {
 ar_params <- c(0.2, -0.1) # AR(2)
 ma_params <- c(0.2)       # MA(1)
 
-cat(sprintf("Configuration: Reps = %d | Sample sizes = %s | Shift = %.2f | Epsilon = %.2f\n",
-            MC_reps, paste(n_values, collapse = ","), shift_mag, epsilon))
-cat(sprintf("Configuration: Reps = %d | Sample sizes = %s | Shift = %.2f | Epsilon = %.2f | B (CUSUM draws) = %d\n",
-            MC_reps, paste(n_values, collapse = ","), shift_mag, epsilon, mc_cusum_reps))
+cat(sprintf("Configuration: Reps = %d | Sample sizes = %s | Shift = %.2f | Epsilon = %.2f | Var Scenarios = %s | B (CUSUM draws) = %d\n",
+            MC_reps, paste(n_values, collapse = ","), shift_mag, epsilon, paste(var_scenarios, collapse = ","), mc_cusum_reps))
 
 # ------------------------------------------------------------------------------
 # 2. Build Simulation Grid
@@ -102,6 +104,7 @@ base_design <- expand.grid(
   hp_scenario   = hp_scenarios,
   contamination = scenarios_contamination,
   innov_dist    = innov_dists,
+  var_scenario  = var_scenarios,
   epsilon       = epsilon,
   shift_k       = shift_mag,
   stringsAsFactors = FALSE
@@ -128,7 +131,7 @@ cat(sprintf("Total simulation tasks: %d (%d design settings x %d reps)\n",
 # ------------------------------------------------------------------------------
 
 run_one_comparison <- function(n_val, hp_scenario, contamination, innov_dist,
-                               epsilon_val, shift_val, ar_p, ma_p, b_cusum) {
+                               var_scenario, epsilon_val, shift_val, ar_p, ma_p, b_cusum) {
 
   # 1. Generate data according to design
   ts_data <- ARMA_mu(
@@ -137,6 +140,7 @@ run_one_comparison <- function(n_val, hp_scenario, contamination, innov_dist,
     ma_coeffs              = ma_p,
     mu_scenario            = hp_scenario,
     k                      = shift_val,
+    var_scenario           = var_scenario,
     innov_dist             = innov_dist,
     contamination_scenario = contamination,
     epsilon                = epsilon_val,
@@ -224,6 +228,7 @@ results_list <- foreach(
     hp_scenario   = row$hp_scenario,
     contamination = row$contamination,
     innov_dist    = row$innov_dist,
+    var_scenario  = row$var_scenario,
     epsilon_val   = row$epsilon,
     shift_val     = row$shift_k,
     ar_p          = ar_params,
@@ -236,6 +241,7 @@ results_list <- foreach(
     hp_scenario   = row$hp_scenario,
     contamination = row$contamination,
     innov_dist    = row$innov_dist,
+    var_scenario  = row$var_scenario,
     n             = row$n,
     rej_our       = res$rej_our,
     rej_hl        = res$rej_hl,
