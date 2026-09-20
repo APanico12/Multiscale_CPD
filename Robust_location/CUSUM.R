@@ -432,7 +432,6 @@ var.est.mean <- function(x, teta, k = 0.45, block = NULL, lag = NULL, c = NULL,
 
 # -----------------------------------------------------------------------------
 # 6. CUSUM test for change in location
-# 6. CUSUM test for change in location with Outlier Diagnostics
 # -----------------------------------------------------------------------------
 
 #' CUSUM-type test for a change in the robust location parameter.
@@ -449,32 +448,9 @@ var.est.mean <- function(x, teta, k = 0.45, block = NULL, lag = NULL, c = NULL,
 #' @param linearized  use the linearized (bias-corrected) estimator if TRUE
 #' @param plotting    produce a diagnostic plot if TRUE
 #' @return list(p_value, test_stat, max_index)
-#' @param x             numeric data vector
-#' @param teta          optional precomputed recursive M-estimate; computed if NULL
-#' @param lag           forward lag used in the linearized estimator
-#' @param block         block size for the variance estimate
-#' @param cutoff        minimum starting index for the test statistic
-#' @param k             window size (proportion rate or absolute integer)
-#' @param c             tuning constant (default: 2.985 for Welsh, 4.685 for Tukey)
-#' @param loss          "Welsh", "Tukey", or "L2"
-#' @param MC            number of Monte Carlo replications for critical values
-#' @param linearized    use the linearized (bias-corrected) estimator if TRUE
-#' @param plotting      produce a CUSUM path diagnostic plot if TRUE
-#' @param plot_outliers produce a full 3-panel outlier & weight diagnostic plot if TRUE
-#' @param outlier_threshold threshold below which observations are flagged as downweighted (default: 0.50)
-#' @return list containing:
-#'         - p_value: empirical p-value
-#'         - test_stat: maximum absolute CUSUM statistic Z
-#'         - max_index: estimated change-point index
-#'         - weights: length-N vector of robust observation weights w_t in [0, 1]
-#'         - residuals: standardized residuals (x_t - theta_t) / sigma_t
-#'         - sigma_hat: local robust scale estimates
-#'         - outliers: data.frame of identified downweighted observations
 CUSUM.mean <- function(x, teta = NULL, lag = NULL, block = NULL, cutoff = 1,
                        k = 0.45, c = NULL, loss = c("Welsh", "Tukey", "L2"),
                        MC = 1000, linearized = TRUE, plotting = FALSE) {
-                       MC = 1000, linearized = TRUE, plotting = FALSE,
-                       plot_outliers = FALSE, outlier_threshold = 0.50) {
 
   loss <- match.arg(loss)
   N <- length(x)
@@ -482,10 +458,6 @@ CUSUM.mean <- function(x, teta = NULL, lag = NULL, block = NULL, cutoff = 1,
   if (k < 1) k_win <- floor(N^k) else k_win <- floor(k)
   if (is.null(lag)) lag <- max(1, floor(0.1 * (log(N))^2))
   if (is.null(block)) block <- max(1, floor(0.1 * (log(N))^2))
-
-  if (is.null(c)) {
-    c <- if (loss == "Welsh") 2.985 else 4.685
-  }
 
   Check.cutoff <- k_win + lag + block
   if (cutoff < Check.cutoff) cutoff <- Check.cutoff
@@ -521,121 +493,6 @@ CUSUM.mean <- function(x, teta = NULL, lag = NULL, block = NULL, cutoff = 1,
   q5  <- quantile(Z.mc, 0.95)
 
   if (plotting) {
-  # ---------------------------------------------------------------------------
-  # Outlier Diagnostics: Compute standardized residuals & observation weights
-  # ---------------------------------------------------------------------------
-  weights_vec <- rep(1.0, N)
-  sigma_vec   <- rep(1.0, N)
-  std_res_vec <- numeric(N)
-
-  if (loss != "L2") {
-    weight_fn <- if (loss == "Welsh") Welsh.weight else tukey_weight
-
-    # Initial baseline scale from the first full window
-    init_win <- x[1:max(k_win, 2)]
-    init_sig <- median(abs(init_win - median(init_win))) / 0.6745
-    if (is.na(init_sig) || init_sig < 1e-4) init_sig <- 1.0
-
-    for (t in 1:N) {
-      if (t < k_win) {
-        sig_t <- init_sig
-        theta_t <- teta[k_win]
-      } else {
-        start_idx <- max(1, t - k_win + 1)
-        r_win <- x[start_idx:t] - teta[t]
-        sig_t <- median(abs(r_win)) / 0.6745
-        if (is.na(sig_t) || sig_t < 1e-4) sig_t <- 1.0
-        theta_t <- teta[t]
-      }
-
-      sigma_vec[t]   <- sig_t
-      r_std          <- (x[t] - theta_t) / sig_t
-      std_res_vec[t] <- r_std
-      weights_vec[t] <- weight_fn(r_std, c = c)
-    }
-  } else {
-    sig_l2 <- sd(x - mean(x))
-    if (is.na(sig_l2) || sig_l2 < 1e-4) sig_l2 <- 1.0
-    sigma_vec   <- rep(sig_l2, N)
-    std_res_vec <- (x - teta) / sig_l2
-    weights_vec <- rep(1.0, N)
-  }
-
-  # Identify downweighted observation indices
-  down_idx <- which(weights_vec < outlier_threshold)
-  outliers_df <- data.frame(
-    index        = down_idx,
-    time         = round(down_idx / N, 4),
-    x_val        = round(x[down_idx], 4),
-    theta_hat    = round(teta[down_idx], 4),
-    sigma_hat    = round(sigma_vec[down_idx], 4),
-    residual_std = round(std_res_vec[down_idx], 4),
-    weight       = round(weights_vec[down_idx], 6),
-    severity     = ifelse(weights_vec[down_idx] < 0.10, "Severe (Weight < 0.1)", "Mild (Weight < 0.5)"),
-    stringsAsFactors = FALSE
-  )
-
-  # ---------------------------------------------------------------------------
-  # Diagnostic Plotting: 3-panel outlier & CUSUM plot
-  # ---------------------------------------------------------------------------
-  if (plot_outliers) {
-    old_par <- par(no.readonly = TRUE)
-    on.exit(par(old_par), add = TRUE)
-
-    par(mfrow = c(3, 1), mar = c(3.5, 4.5, 2.5, 1.2), mgp = c(2.2, 0.8, 0))
-    u_grid <- (1:N) / N
-
-    # Panel 1: Original series + local location estimate + flagged outliers
-    plot(u_grid, x, type = "l", col = "gray40", lwd = 1.2,
-         xlab = "Rescaled Time (u = t/n)", ylab = expression(X[t]),
-         main = sprintf("Time Series with Robust Location (%s Loss) and Flagged Outliers", loss))
-    lines(u_grid, teta, col = "#1976D2", lwd = 2.0)
-    grid(col = "gray90")
-
-    if (length(down_idx) > 0) {
-      # Plot mild downweights in orange, severe in red
-      severe_idx <- down_idx[weights_vec[down_idx] < 0.10]
-      mild_idx   <- down_idx[weights_vec[down_idx] >= 0.10]
-
-      if (length(mild_idx) > 0) {
-        points(u_grid[mild_idx], x[mild_idx], col = "#FB8C00", pch = 1, cex = 1.3, lwd = 1.8)
-      }
-      if (length(severe_idx) > 0) {
-        points(u_grid[severe_idx], x[severe_idx], col = "#D32F2F", pch = 19, cex = 1.2)
-      }
-    }
-    legend("topright",
-           legend = c("Observed Series", "Robust Location", "Severe Outlier (w < 0.1)", "Mild Downweight (w < 0.5)"),
-           col = c("gray40", "#1976D2", "#D32F2F", "#FB8C00"),
-           lty = c(1, 1, NA, NA), lwd = c(1.2, 2.0, NA, NA),
-           pch = c(NA, NA, 19, 1), pt.cex = c(NA, NA, 1.2, 1.3),
-           bg = "white", cex = 0.85)
-
-    # Panel 2: Robust Observation Weights profile
-    plot(u_grid, weights_vec, type = "l", col = "#388E3C", lwd = 1.5,
-         ylim = c(-0.05, 1.05), xlab = "Rescaled Time (u = t/n)", ylab = "Weight w(u)",
-         main = "Robust Observation Weights Profile (Downsized Points Dip to 0)")
-    abline(h = 0.50, lty = 2, col = "#FB8C00", lwd = 1.2)
-    abline(h = 0.10, lty = 2, col = "#D32F2F", lwd = 1.2)
-    grid(col = "gray90")
-    if (length(down_idx) > 0) {
-      points(u_grid[down_idx], weights_vec[down_idx], col = "#D32F2F", pch = 19, cex = 1.0)
-    }
-
-    # Panel 3: CUSUM Test Statistic Path
-    y_max <- max(q5, Z) * 1.25
-    plot(u_grid, Tu, xlab = "Rescaled Time (u = t/n)", ylab = "T(u)", type = "l",
-         ylim = c(-y_max, y_max), lwd = 1.5,
-         main = sprintf("Linearized Robust CUSUM Process (p-val = %.4f, Z = %.2f)", mean(Z.mc > Z), Z))
-    abline(h = q10, lty = 2, col = "gray50")
-    abline(h = -q10, lty = 2, col = "gray50")
-    abline(h = q5, lty = 3, col = "black", lwd = 1.3)
-    abline(h = -q5, lty = 3, col = "black", lwd = 1.3)
-    abline(v = max_index / N, col = "#D32F2F", lty = 2, lwd = 1.5)
-    text(max_index / N, 0, labels = sprintf("k* = %d", max_index), pos = 4, col = "#D32F2F", font = 2)
-    grid(col = "gray90")
-  } else if (plotting) {
-    # Legacy 1-panel CUSUM plot
     plot((1:N) / N, Tu, xlab = "u", ylab = "T(u)", type = "l",
          ylim = c(-max(q5, Z) * 1.1, max(q5, Z) * 1.1))
     abline(h = q10, lty = 2)
@@ -647,14 +504,5 @@ CUSUM.mean <- function(x, teta = NULL, lag = NULL, block = NULL, cutoff = 1,
   }
 
   res <- list(p_value = mean(Z.mc > Z), test_stat = Z, max_index = max_index)
-  res <- list(
-    p_value     = mean(Z.mc > Z),
-    test_stat   = Z,
-    max_index   = max_index,
-    weights     = weights_vec,
-    residuals   = std_res_vec,
-    sigma_hat   = sigma_vec,
-    outliers    = outliers_df
-  )
   return(res)
 }
