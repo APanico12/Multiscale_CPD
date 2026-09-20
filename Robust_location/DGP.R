@@ -75,7 +75,7 @@ ARMA_mu <- function(n, ar_coeffs = NULL, ma_coeffs = NULL, mu_scenario = "H0", d
     sigma_u <- 1 + sin(2 * pi * u)
   } else if (var_scen %in% c("iii", "break", "abrupt")) {
     #sigma_u <- ifelse(u <= 0.5, 0.5, 1.0)
-    sigma_u <- ifelse(u <= 0.5, 1.0, 2.0)  # Jump of magnitude 1.0 (from 1.0 to 2.0)
+    sigma_u <- ifelse(u <= 0.5, 1.0, 1.5)  # Jump of magnitude 1.0 (from 1.0 to 2.0)
   } else if (var_scen %in% c("none", "constant", "homoskedastic")) {
     sigma_u <- rep(1.0, n)
   } else {
@@ -183,7 +183,7 @@ ARMA_mu <- function(n, ar_coeffs = NULL, ma_coeffs = NULL, mu_scenario = "H0", d
 #' Plot a single contaminated time series panel
 plot_contaminated_location_series <- function(dgp_res, title_text, show_legend = FALSE,
                                               show_mean_line = FALSE,
-                                              mean_col = "#1565c0", mean_lwd = 2.4, mean_lty = 1,
+                                              mean_col = "#c62828", mean_lwd = 2.4, mean_lty = 1,
                                               cex_axis = 2.0, cex_lab = 2.0, cex_main = 2.2) {
   y_lims <- extendrange(dgp_res$Xt, f = 0.10)
   
@@ -266,13 +266,13 @@ plot_contaminated_location_series <- function(dgp_res, title_text, show_legend =
 #' Publication figure demonstration: 2x2 matrix of contaminated location series
 demo_location_dgp <- function(save_files = TRUE,
                               output_prefix = "X_location",
-                              var_scenario = "ii",
-                              hp_scenario = "H1",
+                              var_scenario = "i",
+                              hp_scenario = "H0",
                               n = 300,
                               seed = 123,
-                              cex_axis = 2.0,
-                              cex_lab = 2.0,
-                              cex_main = 2.2) {
+                              cex_axis = 1.7,
+                              cex_lab = 1.8,
+                              cex_main = 2) {
   
   ar_params <- c(0.2, -0.1)
   ma_params <- c(0.2)
@@ -304,8 +304,8 @@ demo_location_dgp <- function(save_files = TRUE,
         tcl   = -0.5)
     
     plot_contaminated_location_series(d_clean, "Clean (Reference)", 
-                                     show_legend = TRUE, show_mean_line = TRUE,
-                                     mean_col = "#1565c0", mean_lwd = 2.4,
+                                     show_legend = FALSE, show_mean_line = TRUE,
+                                     mean_col = "#c62828", mean_lwd = 2.4,
                                      cex_axis = cex_axis, cex_lab = cex_lab, cex_main = cex_main)
     plot_contaminated_location_series(d_ao, "Additive Outliers (AO)", 
                                      show_legend = FALSE, show_mean_line = FALSE,

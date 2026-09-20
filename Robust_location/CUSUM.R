@@ -506,3 +506,24 @@ CUSUM.mean <- function(x, teta = NULL, lag = NULL, block = NULL, cutoff = 1,
   res <- list(p_value = mean(Z.mc > Z), test_stat = Z, max_index = max_index)
   return(res)
 }
+
+# ######################
+# #Example usage:
+# ########################
+
+# source("DGP.R")
+# n=1000
+# ar_params <- c(0.2, -0.1)
+# ma_params <- c(0.2)
+# hp_scenario <- "H1"
+# var_scenario <- "i"
+
+# seed <- 123
+
+
+# d_ao <- ARMA_mu(n = n, ar_coeffs = ar_params, ma_coeffs = ma_params,
+#                   mu_scenario = hp_scenario, var_scenario = var_scenario, contamination_scenario = "AO",
+#                   gamma = 10, epsilon = 0.06, seed = seed)
+
+
+# res <- CUSUM.mean(x = d_ao$Xt, k = 0.45, loss = "Welsh", c = 2.985, MC = 1000, linearized = TRUE, plotting = TRUE)

@@ -5,11 +5,12 @@
 #   2. Two-sample Hodges-Lehmann test (Hodges_Lehmann via robcp::hl_test)
 #   3. Huberized CUSUM test (Huber_CUSUM via robcp::huber_cusum)
 #   4. Wilcoxon-Mann-Whitney test (Wilcoxon via robcp::wmw_test)
-#
+#   5. Schmidt (2021) Gini test for heteroscedastic time series (Schmidt_Gini)
+
 # Design:
 #   - Hypotheses: H0 (Size), H1 (Abrupt shift), H2 (Gradual shift)
 #   - Sample sizes: n in {200, 500, 1000}
-#   - Scenarios: Clean, AO (Additive Outliers), IO (Innovation Outliers)
+#   - Scenarios: Clean, AO (Additive Outliers), IO (Innovation Outliers), RO (Replacement Outliers)
 #   - Innovations: Gaussian and Student-t3
 # ==============================================================================
 
@@ -54,8 +55,9 @@ if (is_quick) {
   cat("========================================================\n")
   cat("RUNNING IN QUICK / TEST MODE (Reduced Grid & Reps)\n")
   cat("========================================================\n")
-  MC_reps                 <- 5
-  n_values                <- c(200, 500)
+  MC_reps                 <- as.integer(parse_arg("reps", "5"))
+  n_str                   <- parse_arg("n", "200,500")
+  n_values                <- as.integer(strsplit(n_str, ",")[[1]])
   shift_str               <- parse_arg("shift", "0.5")
   shift_mag               <- as.numeric(shift_str)
   epsilon                 <- 0.05
@@ -88,12 +90,15 @@ if (is_quick) {
   mc_cusum_reps           <- as.integer(b_str)
 }
 
+k_str       <- parse_arg("k", "0.65")
+k_bandwidth <- as.numeric(k_str)
+
 # ARMA parameters
 ar_params <- c(0.2, -0.1) # AR(2)
 ma_params <- c(0.2)       # MA(1)
 
-cat(sprintf("Configuration: Reps = %d | Sample sizes = %s | Shift = %.2f | Epsilon = %.2f | Var Scenarios = %s | B (CUSUM draws) = %d\n",
-            MC_reps, paste(n_values, collapse = ","), shift_mag, epsilon, paste(var_scenarios, collapse = ","), mc_cusum_reps))
+cat(sprintf("Configuration: Reps = %d | Sample sizes = %s | Shift = %.2f | Epsilon = %.2f | Var Scenarios = %s | B (CUSUM draws) = %d | Bandwidth k = %.2f\n",
+            MC_reps, paste(n_values, collapse = ","), shift_mag, epsilon, paste(var_scenarios, collapse = ","), mc_cusum_reps, k_bandwidth))
 
 # ------------------------------------------------------------------------------
 # 2. Build Simulation Grid
@@ -133,7 +138,7 @@ cat(sprintf("Total simulation tasks: %d (%d design settings x %d reps)\n",
 # ------------------------------------------------------------------------------
 
 run_one_comparison <- function(n_val, hp_scenario, contamination, innov_dist,
-                               var_scenario, epsilon_val, shift_val, ar_p, ma_p, b_cusum) {
+                               var_scenario, epsilon_val, shift_val, ar_p, ma_p, b_cusum, k_val = 0.65) {
 
   # 1. Generate data according to design
   ts_data <- ARMA_mu(
@@ -141,7 +146,7 @@ run_one_comparison <- function(n_val, hp_scenario, contamination, innov_dist,
     ar_coeffs              = ar_p,
     ma_coeffs              = ma_p,
     mu_scenario            = hp_scenario,
-    k                      = shift_val,
+    delta                  = shift_val,
     var_scenario           = var_scenario,
     innov_dist             = innov_dist,
     contamination_scenario = contamination,
@@ -153,7 +158,7 @@ run_one_comparison <- function(n_val, hp_scenario, contamination, innov_dist,
 
   # 2. Test 1: Our Proposed Linearized CUSUM test with Welsh score function
   rej_our <- tryCatch({
-    res <- CUSUM.mean(x = x, loss = "Welsh", k = 0.45, MC = b_cusum, linearized = TRUE)
+    res <- CUSUM.mean(x = x, loss = "Welsh", k = k_val, MC = b_cusum, linearized = TRUE)
     as.integer(res$p_value < 0.05)
   }, error = function(e) NA_integer_)
 
@@ -214,7 +219,7 @@ clusterExport(cl, c(
   "int.par.mean", "var.est.mean", "schmidt_test",
   "Welsh.rho", "Welsh.psi", "Welsh.psi.prime", "Welsh.weight",
   "tukey_weight", "tukey_loss_derivative", "tukey_loss_2nd_derivative",
-  "ar_params", "ma_params", "mc_cusum_reps"
+  "ar_params", "ma_params", "mc_cusum_reps", "k_bandwidth"
 ))
 
 invisible(clusterEvalQ(cl, {
@@ -243,7 +248,8 @@ results_list <- foreach(
     shift_val     = row$shift_k,
     ar_p          = ar_params,
     ma_p          = ma_params,
-    b_cusum       = mc_cusum_reps
+    b_cusum       = mc_cusum_reps,
+    k_val         = k_bandwidth
   )
 
   data.frame(

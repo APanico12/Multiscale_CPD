@@ -24,6 +24,5 @@ export MKL_NUM_THREADS=1
 # Default: 1000 MC reps, Welsh loss, n in {100, 500, 1000, 5000}, epsilon = 0.10, cv, var_scenario = i, shift = 0.5
 Rscript simulation.R --reps=1000 --loss=Welsh --epsilon=0.10 --cv --shift=0.5 --var_scenario=i "$@"
 
-# Generate final summary CSV and LaTeX table
-Rscript read_sim_res.R
+
 

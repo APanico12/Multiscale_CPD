@@ -25,11 +25,10 @@ export OPENBLAS_NUM_THREADS=1
 export MKL_NUM_THREADS=1
 
 # Execute parallel Monte Carlo simulation for CPD Comparison
-# Default: 500 reps, n in {200, 500, 1000}, epsilon = 0.05, shift = 1.25
+# Default: 500 reps, n in {200, 500, 1000}, epsilon = 0.05, shift = 1.25, B=200
 #Rscript simulation_cpd_comparison.R --reps=500 --n=200,500,1000 --epsilon=0.05 --shift=1.25 "$@"
-# Default: 500 reps, n in {200, 500, 700}, epsilon = 0.05, shift = 0.5, var_scenarios = i,ii,iii
-Rscript simulation_cpd_comparison.R --reps=500 --n=200,500,700 --epsilon=0.05 --shift=0.5 --var_scenarios=i,ii,iii "$@"
+# Default: 500 reps, n in {200, 500, 1000}, epsilon = 0.05, shift = 0.75, var_scenarios = i,ii,iii
+Rscript simulation_cpd_comparison.R --reps=500 --n=200,500,1000 --epsilon=0.05 --shift=0.75 --var_scenarios=i,ii,iii "$@"
 
-# Generate publication matrix plot
-Rscript plot_cpd_matrix_paper_style.R
+
 
