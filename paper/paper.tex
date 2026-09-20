@@ -98,8 +98,6 @@
 
 \begin{abstract}
     We developed a unified non-parametric framework for change-point detection in multivariate, locally 
-stationary time series defined via nonlinear moment equations ��[��(����,��, ����,��)] = 0. The proposed 
-methodology encompasses a broad range of statistical targets, including robust location, time-varying ��-
 stationary time series defined via nonlinear moment equations $\mathbb{E}[H(X_{t,n}, \theta_{t,n})] = 0$. The proposed 
 methodology encompasses a broad range of statistical targets, including robust location, time-varying $M$-
 regression with redescending score functions, autocovariances, and smoothed extremal downside 
@@ -771,18 +769,21 @@ where the shift magnitude for this simulation is \textcolor{blue}{$\delta = 0.5$
 
 
 \paragraph{Contamination Scenarios}
-To highlight the robustness of the linearization procedure, we evaluate the DGP under:
 To highlight the robustness of the linearization procedure and change-point tests under atypical observations, we evaluate the DGP across four contamination regimes: Clean (uncontaminated) and three distinct outlier generating mechanisms:
 \begin{enumerate}[label=(\roman*)]
-     \item\textbf{Scenario 1 (Additive Outliers)} We contaminate the time series directly with independent Additive Outliers (AO) following the contamination process $X_{t,n}^{obs} = X_{t,n} + I_t^\varepsilon(-1)^\xi K$. 
-    \item \textbf{Scenario 2 (Innovation Outliers)} We inject innovations outliers  (IO) directly into the structural innovations of Equation (\ref{eq:change_in_mean}). The contaminated noise driving the response is defined as $\epsilon_t^{IO} = \epsilon_t + I_t^\varepsilon(-1)^\xi K$. 
      \item \textbf{Scenario 1 (Additive Outliers -- AO):} We contaminate the time series directly with independent additive outliers following $X_{t,n}^{\text{obs}} = X_{t,n} + I_t^\varepsilon(-1)^\xi K$.
      \item \textbf{Scenario 2 (Innovation Outliers -- IO):} We inject shocks directly into the structural innovations of Equation (\ref{eq:change_in_mean}), $\epsilon_t^{\text{IO}} = \epsilon_t + I_t^\varepsilon(-1)^\xi K$, causing outlier effects to propagate dynamically via the autoregressive filter.
      \item \textbf{Scenario 3 (Replacement Outliers -- RO):} We model localized bursts or replacement spikes where contaminated values overwrite the underlying process, $X_{t,n}^{\text{obs}} = (1 - S_t) X_{t,n} + S_t (-1)^\xi K$. Here, $S_t \in \{0, 1\}$ is a 2-state stationary Markov chain with recovery rate $\kappa = 0.50$ and transition probabilities $P(S_t = 1 \mid S_{t-1} = 0) = \varepsilon \kappa / (1 - \varepsilon)$ and $P(S_t = 1 \mid S_{t-1} = 1) = 1 - \kappa$, yielding stationary marginal contamination frequency $\mathbb{E}[S_t] = \varepsilon$.
 \end{enumerate}
-Here, $I_t^\varepsilon \sim \text{Bernoulli}(\varepsilon)$ denotes an outlier indicator with occurrence probability $\varepsilon$, $\xi \sim \text{Bernoulli}(0.5)$ determines the shock sign, and the magnitude is fixed at $K = 10$.
+Here, $I_t^\varepsilon \sim \text{Bernoulli}(\varepsilon)$ denotes an outlier indicator with occurrence probability $\varepsilon$, $\xi \sim \text{Bernoulli}(0.5)$ determines the shock sign, and the magnitude is fixed at $K = 10$. An illustrative realization of sample size $n = 200$ under an abrupt shift $\mathcal{H}_1$ is depicted in Figure~\ref{fig:X_location} across all four regimes.
 
-where $I_t^\varepsilon \sim \text{Bernoulli}(\varepsilon)$ be an indicator for outlier occurrence with probability $\varepsilon$, $\xi \sim \text{Bernoulli}(0.5)$ which determines the sign of the  $K = 10$.
+\begin{figure}[!htbp]
+    \centering
+    \includegraphics[width=1\linewidth]{img/X_location.pdf}
+    \caption{\footnotesize \textbf{Simulated trajectories from the location DGP across contamination scenarios under an abrupt structural break ($\mathcal{H}_1$).}
+    The clean baseline (top left) follows an ARMA(2,1) model with time-varying scale $\sigma(u) = \exp(u)$ and an abrupt jump $\delta = 0.50$ at $u = 0.50$; the blue solid line indicates the true theoretical expectation $m(u) = \mu(u)/(1 - a_1 - a_2)$. The remaining panels depict the three contamination mechanisms with contamination probability $\varepsilon = 0.05$ and shock magnitude $K = 10$: Additive Outliers (AO, top right), Innovation Outliers (IO, bottom left), where innovation shocks propagate through autoregressive filtering, and Replacement Outliers (RO, bottom right), where a 2-state Markov chain generates persistent contamination clusters. Red circles mark the observations affected by contamination.}
+    \label{fig:X_location}
+\end{figure}
 
 \paragraph{Bandwidth Selection Strategy}
 The practical implementation of our change-point framework requires specifying the local estimation bandwidth $M$. In this simulation, we use $M$ that minimizes the system of equations on an unseen future observation at lag $L_n$. Formally, the optimal bandwidth is selected by solving:
