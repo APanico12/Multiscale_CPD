@@ -352,9 +352,9 @@ demo_dgp <- function(save_files = TRUE,
                      layout = "2x2",
                      n = 300,
                      seed = 123,
-                     cex_axis = 1.4,
-                     cex_lab = 1.5,
-                     cex_main = 2.0) {
+                     cex_axis = 2.0,
+                     cex_lab = 2.0,
+                     cex_main = 2.2) {
   
   # Generate 4 contamination scenarios exclusively for Model I (LMCH)
   # 1. Clean
@@ -376,8 +376,8 @@ demo_dgp <- function(save_files = TRUE,
     if (layout == "2x2") {
       # 2x2 layout: Wide horizontal rectangular panels (X-axis longer), occupying ~1/3 of page height
       par(mfrow = c(2, 2),
-          mar   = c(4.5, 4.8, 2.8, 1.0),
-          mgp   = c(3.0, 1.0, 0),
+          mar   = c(4.8, 5.4, 2.8, 1.0),
+          mgp   = c(3.3, 1.1, 0),
           tcl   = -0.5)
       
       plot_contaminated_series(d_clean, "Clean (Reference)", show_legend = FALSE,

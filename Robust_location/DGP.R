@@ -184,7 +184,7 @@ ARMA_mu <- function(n, ar_coeffs = NULL, ma_coeffs = NULL, mu_scenario = "H0", d
 plot_contaminated_location_series <- function(dgp_res, title_text, show_legend = FALSE,
                                               show_mean_line = FALSE,
                                               mean_col = "#1565c0", mean_lwd = 2.4, mean_lty = 1,
-                                              cex_axis = 1.4, cex_lab = 1.5, cex_main = 1.8) {
+                                              cex_axis = 2.0, cex_lab = 2.0, cex_main = 2.2) {
   y_lims <- extendrange(dgp_res$Xt, f = 0.10)
   
   plot(NA, NA,
@@ -238,12 +238,12 @@ plot_contaminated_location_series <- function(dgp_res, title_text, show_legend =
              lwd     = c(1.3, mean_lwd, NA),
              pch     = c(NA, NA, 1),
              pt.lwd  = c(NA, NA, 2.0),
-             pt.cex  = c(NA, NA, 1.3),
+             pt.cex  = c(NA, NA, 1.4),
              bty     = "o",
              box.col = "gray80",
              box.lwd = 1.0,
              bg      = "white",
-             cex     = 1.2,
+             cex     = 1.4,
              inset   = c(0.02, 0.03))
     } else {
       legend("topleft",
@@ -258,7 +258,7 @@ plot_contaminated_location_series <- function(dgp_res, title_text, show_legend =
              box.col = "gray80",
              box.lwd = 1.0,
              bg      = "white",
-             cex     = 1.2,
+             cex     = 1.4,
              inset   = c(0.02, 0.03))
     }
   }
@@ -270,9 +270,9 @@ demo_location_dgp <- function(save_files = TRUE,
                               hp_scenario = "H1",
                               n = 300,
                               seed = 123,
-                              cex_axis = 1.4,
-                              cex_lab = 1.5,
-                              cex_main = 1.8) {
+                              cex_axis = 2.0,
+                              cex_lab = 2.0,
+                              cex_main = 2.2) {
   
   ar_params <- c(0.2, -0.1)
   ma_params <- c(0.2)
@@ -299,13 +299,13 @@ demo_location_dgp <- function(save_files = TRUE,
   
   draw_panels <- function() {
     par(mfrow = c(2, 2),
-        mar   = c(4.5, 4.8, 2.8, 1.0),
-        mgp   = c(3.0, 1.0, 0),
+        mar   = c(4.8, 5.4, 2.8, 1.0),
+        mgp   = c(3.3, 1.1, 0),
         tcl   = -0.5)
     
     plot_contaminated_location_series(d_clean, "Clean (Reference)", 
                                      show_legend = TRUE, show_mean_line = TRUE,
-                                     mean_lwd = 2.4,
+                                     mean_col = "#1565c0", mean_lwd = 2.4,
                                      cex_axis = cex_axis, cex_lab = cex_lab, cex_main = cex_main)
     plot_contaminated_location_series(d_ao, "Additive Outliers (AO)", 
                                      show_legend = FALSE, show_mean_line = FALSE,
