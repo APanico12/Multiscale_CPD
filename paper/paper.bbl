@@ -1,8 +1,34 @@
 \begin{thebibliography}{}
 
+\bibitem[Dehling et~al., 2015]{Dehling2015}
+Dehling, H., Fried, R., Garcia, I., and Wendler, M. (2015).
+\newblock Change-point detection under dependence based on two-sample
+  {U}-statistics.
+\newblock In {\em Asymptotic Laws and Methods in Stochastics}, pages 195--220.
+  Springer.
+
+\bibitem[Dehling et~al., 2020]{Dehling2020}
+Dehling, H., Fried, R., and Wendler, M. (2020).
+\newblock A robust method for shift detection in time series.
+\newblock {\em Biometrika}, 107(3):647--660.
+
+\bibitem[Hu{\v{s}}kov{\'a} and Maru{\v{s}}iakov{\'a}, 2012]{huskova2012}
+Hu{\v{s}}kov{\'a}, M. and Maru{\v{s}}iakov{\'a}, M. (2012).
+\newblock {M}-procedures for detection of changes for dependent observations.
+\newblock {\em Communications in Statistics---Simulation and Computation},
+  41(7):1032--1050.
+
 \bibitem[Mies, 2023]{Mies2023}
 Mies, F. (2023).
-\newblock Functional estimation and change detection for nonstationary time series.
-\newblock {\em Journal of the American Statistical Association}, 118(542):1011--1022.
+\newblock Functional estimation and change detection for nonstationary time
+  series.
+\newblock {\em Journal of the American Statistical Association},
+  118(542):1011--1022.
+
+\bibitem[Schmidt, 2021]{schmidt2021}
+Schmidt, S.~K. (2021).
+\newblock Detecting changes in the trend function of heteroscedastic time
+  series.
+\newblock {\em arXiv preprint arXiv:2108.09206}.
 
 \end{thebibliography}

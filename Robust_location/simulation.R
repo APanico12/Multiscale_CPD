@@ -56,6 +56,7 @@ if (is_quick) {
   shift_k_opts            <- c(shift_arg)
   epsilon                 <- c(0.10)
   scenarios.contamination <- c("clean", "AO", "IO")
+  scenarios.contamination <- c("clean", "AO", "IO", "RO")
   innov_dist_opts         <- c("gaussian", "t3")
   mu_scenarios            <- c("H0", "H1", "H2")
 } else {
@@ -70,6 +71,8 @@ if (is_quick) {
   
   shift_k_opts    <- c(shift_arg)
   scenarios.contamination <- c("clean", "AO", "IO")
+  contam_str      <- parse_arg("contamination", "clean,AO,IO,RO")
+  scenarios.contamination <- strsplit(contam_str, ",")[[1]]
   innov_dist_opts <- c("gaussian", "t3")
   mu_scenarios    <- c("H0", "H1", "H2")
 }

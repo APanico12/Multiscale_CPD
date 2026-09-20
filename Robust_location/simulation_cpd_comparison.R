@@ -32,6 +32,7 @@ suppressPackageStartupMessages({
 # Source required local functions
 source("DGP.R")
 source("CUSUM.R")
+source("schmidt_test.R")
 
 # ------------------------------------------------------------------------------
 # 1. Configuration & Command Line Argument Parsing
@@ -58,12 +59,12 @@ if (is_quick) {
   shift_str               <- parse_arg("shift", "0.5")
   shift_mag               <- as.numeric(shift_str)
   epsilon                 <- 0.05
-  scenarios_contamination <- c("clean", "AO", "IO")
+  scenarios_contamination <- c("clean", "AO", "IO", "RO")
   innov_dists             <- c("gaussian", "t3")
   hp_scenarios            <- c("H0", "H1", "H2")
   var_scenarios_str       <- parse_arg("var_scenarios", "i,ii,iii")
   var_scenarios           <- strsplit(var_scenarios_str, ",")[[1]]
-  mc_cusum_reps           <- 100
+  mc_cusum_reps           <- 50
 } else {
   reps_str                <- parse_arg("reps", Sys.getenv("MC_REPS", "500"))
   MC_reps                 <- as.integer(reps_str)
@@ -77,7 +78,8 @@ if (is_quick) {
   shift_str               <- parse_arg("shift", "0.5")
   shift_mag               <- as.numeric(shift_str)
   
-  scenarios_contamination <- c("clean", "AO", "IO")
+  contam_str              <- parse_arg("contamination", "clean,AO,IO,RO")
+  scenarios_contamination <- strsplit(contam_str, ",")[[1]]
   innov_dists             <- c("gaussian", "t3")
   hp_scenarios            <- c("H0", "H1", "H2")
   var_scenarios_str       <- parse_arg("var_scenarios", "i,ii,iii")
@@ -173,11 +175,18 @@ run_one_comparison <- function(n_val, hp_scenario, contamination, innov_dist,
     as.integer(res$p.value < 0.05)
   }, error = function(e) NA_integer_)
 
+  # 6. Test 5: Schmidt (2021) Gini test for heteroscedastic time series
+  rej_schmidt <- tryCatch({
+    res <- schmidt_test(x, s = 0.7, q = 0.4, c0 = 10, M_psi = 300)
+    as.integer(res$p_value < 0.05)
+  }, error = function(e) NA_integer_)
+
   list(
-    rej_our   = rej_our,
-    rej_hl    = rej_hl,
-    rej_huber = rej_huber,
-    rej_wmw   = rej_wmw
+    rej_our     = rej_our,
+    rej_hl      = rej_hl,
+    rej_huber   = rej_huber,
+    rej_wmw     = rej_wmw,
+    rej_schmidt = rej_schmidt
   )
 }
 
@@ -202,7 +211,7 @@ clusterSetRNGStream(cl, 123)
 
 clusterExport(cl, c(
   "run_one_comparison", "ARMA_mu", "CUSUM.mean", "get_teta", "solve_teta",
-  "int.par.mean", "var.est.mean",
+  "int.par.mean", "var.est.mean", "schmidt_test",
   "Welsh.rho", "Welsh.psi", "Welsh.psi.prime", "Welsh.weight",
   "tukey_weight", "tukey_loss_derivative", "tukey_loss_2nd_derivative",
   "ar_params", "ma_params", "mc_cusum_reps"
@@ -214,6 +223,7 @@ invisible(clusterEvalQ(cl, {
   suppressPackageStartupMessages(library(robcp))
   source("DGP.R")
   source("CUSUM.R")
+  source("schmidt_test.R")
 }))
 
 cat("Running parallel simulation across", cores, "cores...\n")
@@ -247,6 +257,7 @@ results_list <- foreach(
     rej_hl        = res$rej_hl,
     rej_huber     = res$rej_huber,
     rej_wmw       = res$rej_wmw,
+    rej_schmidt   = res$rej_schmidt,
     stringsAsFactors = FALSE
   )
 }
@@ -259,5 +270,21 @@ cat(sprintf("Simulation finished in %.2f seconds (%.2f minutes).\n", elapsed, el
 # Save raw replication data
 write.csv(results_list, "sim_results_cpd_comparison.csv", row.names = FALSE)
 cat("Saved raw simulation results to sim_results_cpd_comparison.csv\n")
+
+# Compute and save summary rates
+suppressPackageStartupMessages(library(dplyr))
+summary_df <- results_list %>%
+  group_by(hp_scenario, contamination, innov_dist, var_scenario, n) %>%
+  summarise(
+    reps         = n(),
+    rate_our     = mean(rej_our, na.rm = TRUE),
+    rate_hl      = mean(rej_hl, na.rm = TRUE),
+    rate_huber   = mean(rej_huber, na.rm = TRUE),
+    rate_wmw     = mean(rej_wmw, na.rm = TRUE),
+    rate_schmidt = mean(rej_schmidt, na.rm = TRUE),
+    .groups      = "drop"
+  )
+write.csv(summary_df, "sim_summary_cpd_comparison.csv", row.names = FALSE)
+cat("Saved summary rates to sim_summary_cpd_comparison.csv\n")
 
 

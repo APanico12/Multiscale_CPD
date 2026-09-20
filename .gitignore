@@ -1,7 +1,32 @@
-.Rproj.user
+# LaTeX auxiliary build files and logs
+*.aux
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.nav
+*.out
+*.run.xml
+*.snm
+*.synctex.gz
+*.toc
+*.vrb
+
+# Scratch and test files
+paper/paper_test.*
+paper/page16_2x2-16.png
+Robust_regression/test_2x2_wide.png
+
+# R session and environment files
 .Rhistory
 .RData
-.Ruserdata
-.NonLinearChange
-.Simulation_Bootsrap
-.positai
+.RDataTmp
+.Rproj.user/
+
+# System and editor files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+.vscode/
+.idea/
