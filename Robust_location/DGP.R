@@ -232,10 +232,13 @@ plot_contaminated_location_series <- function(dgp_res, title_text, show_legend =
   if (show_legend) {
     if (show_mean_line) {
       legend("topleft",
-             legend  = c("Series", expression(paste("Mean ", italic(m(u))))),
-             col     = c("gray25", mean_col),
-             lty     = c(1, mean_lty),
-             lwd     = c(1.3, mean_lwd),
+             legend  = c("Series", expression(paste("Mean ", italic(m(u)))), "Outlier"),
+             col     = c("gray25", mean_col, "#c62828"),
+             lty     = c(1, mean_lty, NA),
+             lwd     = c(1.3, mean_lwd, NA),
+             pch     = c(NA, NA, 1),
+             pt.lwd  = c(NA, NA, 2.0),
+             pt.cex  = c(NA, NA, 1.3),
              bty     = "o",
              box.col = "gray80",
              box.lwd = 1.0,
@@ -260,7 +263,6 @@ plot_contaminated_location_series <- function(dgp_res, title_text, show_legend =
     }
   }
 }
-
 #' Publication figure demonstration: 2x2 matrix of contaminated location series
 demo_location_dgp <- function(save_files = TRUE,
                               output_prefix = "X_location",
@@ -303,10 +305,10 @@ demo_location_dgp <- function(save_files = TRUE,
     
     plot_contaminated_location_series(d_clean, "Clean (Reference)", 
                                      show_legend = TRUE, show_mean_line = TRUE,
-                                     mean_col = "#1565c0", mean_lwd = 2.4,
+                                     mean_lwd = 2.4,
                                      cex_axis = cex_axis, cex_lab = cex_lab, cex_main = cex_main)
     plot_contaminated_location_series(d_ao, "Additive Outliers (AO)", 
-                                     show_legend = TRUE, show_mean_line = FALSE,
+                                     show_legend = FALSE, show_mean_line = FALSE,
                                      cex_axis = cex_axis, cex_lab = cex_lab, cex_main = cex_main)
     plot_contaminated_location_series(d_io, "Innovation Outliers (IO)", 
                                      show_legend = FALSE, show_mean_line = FALSE,
