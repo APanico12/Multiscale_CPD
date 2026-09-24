@@ -1,23 +1,16 @@
-#!/usr/bin/env Rscript
 # ==============================================================================
 # File: plot_power_matrix.R
-# Description: Generates publication-ready 2x4 minimal square power curve matrices:
-#              - Twice bigger, prominent axis ticks (tcl = -0.6, lwd.ticks = 2.0)
-#              - Rows: Abrupt Break (H1) & Gradual Break (H2)
-#              - Columns: Clean, AO, IO, RO
-#              - Separate figures for Gaussian and Student-t3 noise
-#              - Panel [1, 1] displays axis labels: X label = delta, Y label = Power
-#              - Panel [1, 1] displays sample size n legend
-#              - Panel [2, 1] displays test procedure (Robust M-Test vs Classical L2) legend
-#              - Alpha = 0.05 nominal size reference line
-#              - Square panels (pty = "s")
+# Description: Generates publication-ready 2x4 empirical power matrix figures
+#              matching exact aesthetic styling (square panels, bold annotations,
+#              inner dashed grids, enlarged ticks, custom legends).
 # ==============================================================================
 
-plot_power_matrix <- function(csv_file = "sim_summary_power_n01.csv",
-                              output_prefix = "power_curves_matrix") {
+plot_power_matrix <- function(csv_file = NULL,
+                              output_prefix = NULL) {
   
   # Smart file resolution for both project root and Robust_regression directory
   find_file <- function(fname) {
+    if (is.null(fname)) return(NULL)
     cands <- c(
       fname,
       file.path("Robust_regression", fname),
@@ -32,19 +25,37 @@ plot_power_matrix <- function(csv_file = "sim_summary_power_n01.csv",
   resolved_csv <- find_file(csv_file)
   
   if (is.null(resolved_csv)) {
-    raw_csv <- find_file("sim_results_power.csv")
-    if (!is.null(raw_csv)) {
-      cat(sprintf("Reading raw '%s' and aggregating...\n", raw_csv))
-      raw_df <- read.csv(raw_csv, stringsAsFactors = FALSE)
-      df <- aggregate(cbind(rej_lin, rej_l2) ~ model_type + n + innov_dist + contamination + epsilon + hp_scenario + delta,
-                      data = raw_df, FUN = function(x) round(mean(x, na.rm = TRUE), 4))
-      names(df)[names(df) == "rej_lin"] <- "rate_linearized"
-      names(df)[names(df) == "rej_l2"]  <- "rate_l2"
-    } else {
-      stop(sprintf("Data file '%s' not found in current directory or Robust_regression!", csv_file))
+    candidates <- c(
+      "sim_summary_power_LMCH.csv",
+      "sim_summary_power_LMUH.csv",
+      "sim_summary_power.csv",
+      "sim_summary_power_n01.csv",
+      "sim_results_power_LMCH.csv",
+      "sim_results_power_LMUH.csv",
+      "sim_results_power.csv"
+    )
+    for (cand in candidates) {
+      resolved_csv <- find_file(cand)
+      if (!is.null(resolved_csv)) {
+        cat(sprintf("Using data file: %s\n", resolved_csv))
+        break
+      }
     }
+  }
+  
+  if (is.null(resolved_csv)) {
+    stop("No simulation power summary CSV found! Please provide a path or run the simulation first.")
+  }
+  
+  df_in <- read.csv(resolved_csv, stringsAsFactors = FALSE)
+  if ("rej_lin" %in% names(df_in) && !("rate_linearized" %in% names(df_in))) {
+    cat(sprintf("Reading raw '%s' and aggregating...\n", resolved_csv))
+    df <- aggregate(cbind(rej_lin, rej_l2) ~ model_type + n + innov_dist + contamination + epsilon + hp_scenario + delta,
+                    data = df_in, FUN = function(x) round(mean(x, na.rm = TRUE), 4))
+    names(df)[names(df) == "rej_lin"] <- "rate_linearized"
+    names(df)[names(df) == "rej_l2"]  <- "rate_l2"
   } else {
-    df <- read.csv(resolved_csv, stringsAsFactors = FALSE)
+    df <- df_in
   }
   
   # Ensure standard column names
@@ -65,9 +76,10 @@ plot_power_matrix <- function(csv_file = "sim_summary_power_n01.csv",
   # Colors for sample sizes matching reference image: red, green, blue
   n_vals <- sort(unique(df$n))
   n_colors <- c(
-    "500"  = "#e53935", # Crimson Red
-    "1000" = "#2e7d32", # Forest Green
-    "5000" = "#1565c0"  # Deep Blue
+    "500"   = "#e53935", # Crimson Red
+    "1000"  = "#2e7d32", # Forest Green
+    "5000"  = "#1565c0", # Deep Blue
+    "10000" = "#8e24aa"  # Purple
   )
   palette_base <- c("#1565c0", "#2e7d32", "#e53935", "#8e24aa")
   for (i in seq_along(n_vals)) {
@@ -230,6 +242,12 @@ plot_power_matrix <- function(csv_file = "sim_summary_power_n01.csv",
   out_dir <- if (!is.null(resolved_csv)) dirname(resolved_csv) else "."
   if (out_dir == "") out_dir <- "."
   
+  # Determine prefix
+  cur_models <- unique(df$model_type)
+  if (is.null(output_prefix)) {
+    output_prefix <- if (length(cur_models) == 1) sprintf("power_curves_matrix_%s", cur_models[1]) else "power_curves_matrix"
+  }
+  
   # Generate both Gaussian and t3 figures
   for (t_inn in target_innovs) {
     pdf_path <- file.path(out_dir, sprintf("%s_%s.pdf", output_prefix, t_inn$file_tag))
@@ -246,14 +264,18 @@ plot_power_matrix <- function(csv_file = "sim_summary_power_n01.csv",
     draw_matrix(t_inn$id, t_inn$name)
     dev.off()
     cat(sprintf("Successfully saved high-res PNG: %s\n", png_path))
+    
+    # If prefix was model-specific, also save standard named copy
+    if (output_prefix != "power_curves_matrix") {
+      file.copy(pdf_path, file.path(out_dir, sprintf("power_curves_matrix_%s.pdf", t_inn$file_tag)), overwrite = TRUE)
+      file.copy(png_path, file.path(out_dir, sprintf("power_curves_matrix_%s.png", t_inn$file_tag)), overwrite = TRUE)
+    }
   }
 }
 
-# Automatically execute when run interactively or via Rscript if data exists
-has_summary <- file.exists("sim_summary_power_n01.csv") || file.exists(file.path("Robust_regression", "sim_summary_power_n01.csv"))
-has_raw     <- file.exists("sim_results_power_n01.csv") || file.exists(file.path("Robust_regression", "sim_results_powern01.csv"))
-
-if (has_summary || has_raw) {
-  cat("Auto-running plot_power_matrix()...\n")
-  plot_power_matrix()
+# Standalone execution when run interactively or via Rscript
+if (sys.nframe() == 0 || !interactive()) {
+  cmd_args <- commandArgs(trailingOnly = TRUE)
+  target_csv <- if (length(cmd_args) > 0 && !grepl("^--", cmd_args[1])) cmd_args[1] else NULL
+  plot_power_matrix(csv_file = target_csv)
 }

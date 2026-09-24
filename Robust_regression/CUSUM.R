@@ -218,9 +218,11 @@ cv_optimal_bandwidth_regression <- function(Y, X, k_grid = NULL, lag = NULL,
   global_sig <- median(abs(Y - as.vector(X %*% pilot_ols))) / 0.6745
   if (is.na(global_sig) || global_sig < 1e-5) global_sig <- 1.0
   
+  betahat_list <- vector("list", length(k_grid))
   for (i in seq_along(k_grid)) {
     k_val <- k_grid[i]
     betahat_k <- get_theta(Y, X, k = k_val, c = c, loss = loss)
+    betahat_list[[i]] <- betahat_k
     
     t_start <- k_val
     t_end   <- N - lag
@@ -254,11 +256,12 @@ cv_optimal_bandwidth_regression <- function(Y, X, k_grid = NULL, lag = NULL,
   best_rate <- log(best_k) / log(N)
   
   return(list(
-    k_opt      = best_k,
-    k_opt_rate = round(best_rate, 4),
-    lag        = lag,
-    cv_losses  = round(cv_losses, 4),
-    k_grid     = k_grid
+    k_opt       = best_k,
+    k_opt_rate  = round(best_rate, 4),
+    lag         = lag,
+    cv_losses   = round(cv_losses, 4),
+    k_grid      = k_grid,
+    betahat_opt = betahat_list[[best_idx]]
   ))
 }
 
@@ -478,7 +481,7 @@ var.est.regression <- function(Y, X, betahat, k = 0.45, block = NULL, lag = NULL
 
 CUSUM.regression <- function(Y, X, C_mat = NULL, betahat = NULL, k = 0.65, lag = NULL, block = NULL,
                              cutoff = NULL, c = NULL, loss = "Welsh", MC = 1000, B = 1000,
-                             linearized = TRUE, use_cv = FALSE, plotting = FALSE) {
+                             linearized = TRUE, use_cv = FALSE, k_grid = NULL, plotting = FALSE) {
   if (!is.null(B)) MC <- B
   N <- length(Y)
   X <- as.matrix(X)
@@ -498,8 +501,11 @@ CUSUM.regression <- function(Y, X, C_mat = NULL, betahat = NULL, k = 0.65, lag =
   # Cross-validation for optimal bandwidth k if requested
   cv_info <- NULL
   if (isTRUE(use_cv) || (is.character(k) && tolower(k) == "cv")) {
-    cv_info <- cv_optimal_bandwidth_regression(Y, X, lag = max(1, floor(0.1 * (log(N))^2)), loss = loss, c = c)
+    cv_info <- cv_optimal_bandwidth_regression(Y, X, k_grid = k_grid, lag = max(1, floor(0.1 * (log(N))^2)), loss = loss, c = c)
     k <- cv_info$k_opt
+    if (is.null(betahat) && !is.null(cv_info$betahat_opt)) {
+      betahat <- cv_info$betahat_opt
+    }
   }
   
   if (k < 1) k_win <- max(d + 2, floor(N^k)) else k_win <- floor(k)

@@ -90,15 +90,57 @@ if (is_quick) {
   mc_cusum_reps           <- as.integer(b_str)
 }
 
-k_str       <- parse_arg("k", "0.65")
+# Bandwidth rate exponent k (default: 0.45 -> k_n = floor(n^0.45))
+k_str       <- parse_arg("k", "0.45")
 k_bandwidth <- as.numeric(k_str)
+
+# Cross-validation for bandwidth selection (Welsh test)
+# Accepts --use_cv=TRUE/FALSE, --cv=TRUE/FALSE, or logical flag
+cv_str      <- parse_arg("use_cv", parse_arg("cv", "FALSE"))
+use_cv      <- as.logical(toupper(cv_str) %in% c("TRUE", "T", "1", "YES"))
+
+# CV candidate grid (rates or integer window sizes, e.g. "0.45,0.65" or "default")
+cv_grid_str <- parse_arg("cv_grid", "0.45,0.65")
+cv_grid_vec <- if (tolower(cv_grid_str) %in% c("default", "null", "none")) {
+  NULL
+} else {
+  as.numeric(strsplit(cv_grid_str, ",")[[1]])
+}
+
+# Parse active models/tests to run
+# Available options: W (Welsh), L or HL (Hodges-Lehmann), H (Huber), WMW (Wilcoxon), S (Schmidt)
+# Accepts formats like: --models=L,W,S or --models=c(L,W,S) or --models="W,HL,H,WMW,S"
+models_str_raw <- parse_arg("models", "W,L,H,WMW,S")
+models_clean   <- gsub("[c()\"' ]", "", models_str_raw)
+models_tokens  <- toupper(strsplit(models_clean, ",")[[1]])
+
+# Normalize aliases
+active_models <- unique(sapply(models_tokens, function(m) {
+  if (m %in% c("L", "HL", "HODGES_LEHMANN", "HODGESLEHMANN")) "L"
+  else if (m %in% c("W", "WELSH", "OUR_WELSH")) "W"
+  else if (m %in% c("H", "HUBER", "HUBER_CUSUM")) "H"
+  else if (m %in% c("WMW", "WILCOXON")) "WMW"
+  else if (m %in% c("S", "SCHMIDT", "SCHMIDT_GINI")) "S"
+  else m
+}))
 
 # ARMA parameters
 ar_params <- c(0.2, -0.1) # AR(2)
 ma_params <- c(0.2)       # MA(1)
 
-cat(sprintf("Configuration: Reps = %d | Sample sizes = %s | Shift = %.2f | Epsilon = %.2f | Var Scenarios = %s | B (CUSUM draws) = %d | Bandwidth k = %.2f\n",
-            MC_reps, paste(n_values, collapse = ","), shift_mag, epsilon, paste(var_scenarios, collapse = ","), mc_cusum_reps, k_bandwidth))
+# Output file configuration
+raw_out_file     <- parse_arg("output_file", parse_arg("out", parse_arg("output", "sim_results_cpd_comparison.csv")))
+summary_out_file <- parse_arg("output_summary", parse_arg("summary_out", "sim_summary_cpd_comparison.csv"))
+
+cv_info_str <- if (use_cv) {
+  sprintf("TRUE (Grid: %s)", if (is.null(cv_grid_vec)) "default [N^0.35, N^0.65]" else paste(cv_grid_vec, collapse = ","))
+} else {
+  "FALSE (Fixed k)"
+}
+
+cat(sprintf("Configuration: Reps = %d | Sample sizes = %s | Shift = %.2f | Epsilon = %.2f | Var Scenarios = %s | B (CUSUM draws) = %d | Bandwidth k = %.2f | Use CV = %s | Active Models = %s\n",
+            MC_reps, paste(n_values, collapse = ","), shift_mag, epsilon, paste(var_scenarios, collapse = ","), mc_cusum_reps, k_bandwidth, cv_info_str, paste(active_models, collapse = ", ")))
+cat(sprintf("Output files: Raw results = %s | Summary table = %s\n", raw_out_file, summary_out_file))
 
 # ------------------------------------------------------------------------------
 # 2. Build Simulation Grid
@@ -134,11 +176,13 @@ cat(sprintf("Total simulation tasks: %d (%d design settings x %d reps)\n",
             nrow(sim_grid), nrow(base_design), MC_reps))
 
 # ------------------------------------------------------------------------------
-# 3. Worker Function: Run All 4 Tests on the Same Data Stream
+# 3. Worker Function: Run Selected Tests on the Same Data Stream
 # ------------------------------------------------------------------------------
 
 run_one_comparison <- function(n_val, hp_scenario, contamination, innov_dist,
-                               var_scenario, epsilon_val, shift_val, ar_p, ma_p, b_cusum, k_val = 0.65) {
+                               var_scenario, epsilon_val, shift_val, ar_p, ma_p, b_cusum, k_val = 0.45,
+                               active_models = c("W", "L", "H", "WMW", "S"),
+                               use_cv = FALSE, cv_grid = c(0.45, 0.65)) {
 
   # 1. Generate data according to design
   ts_data <- ARMA_mu(
@@ -156,35 +200,53 @@ run_one_comparison <- function(n_val, hp_scenario, contamination, innov_dist,
   
   x <- ts_data$Xt
 
-  # 2. Test 1: Our Proposed Linearized CUSUM test with Welsh score function
-  rej_our <- tryCatch({
-    res <- CUSUM.mean(x = x, loss = "Welsh", k = k_val, MC = b_cusum, linearized = TRUE)
-    as.integer(res$p_value < 0.05)
-  }, error = function(e) NA_integer_)
+  # 2. Test 1: Our Proposed Linearized CUSUM test with Welsh score function (W)
+  rej_our <- if ("W" %in% active_models) {
+    tryCatch({
+      if (isTRUE(use_cv)) {
+        cv_res    <- cv_optimal_bandwidth_location(x = x, loss = "Welsh", k_grid = cv_grid)
+        k_eval    <- cv_res$k_opt
+        teta_eval <- if (!is.null(cv_res$teta_opt)) cv_res$teta_opt else NULL
+      } else {
+        k_eval    <- k_val
+        teta_eval <- NULL
+      }
+      res <- CUSUM.mean(x = x, teta = teta_eval, loss = "Welsh", k = k_eval, MC = b_cusum, linearized = TRUE)
+      as.integer(res$p_value < 0.05)
+    }, error = function(e) NA_integer_)
+  } else NA_integer_
 
-  # 3. Test 2: Two-sample Hodges-Lehmann test (robcp::hl_test)
-  rej_hl <- tryCatch({
-    res <- robcp::hl_test(x)
-    as.integer(res$p.value < 0.05)
-  }, error = function(e) NA_integer_)
+  # 3. Test 2: Two-sample Hodges-Lehmann test (robcp::hl_test) (L / HL)
+  rej_hl <- if (any(c("L", "HL") %in% active_models)) {
+    tryCatch({
+      res <- robcp::hl_test(x)
+      as.integer(res$p.value < 0.05)
+    }, error = function(e) NA_integer_)
+  } else NA_integer_
 
-  # 4. Test 3: Huberized CUSUM test (robcp::huber_cusum)
-  rej_huber <- tryCatch({
-    res <- robcp::huber_cusum(x, fun = "HLm")
-    as.integer(res$p.value < 0.05)
-  }, error = function(e) NA_integer_)
+  # 4. Test 3: Huberized CUSUM test (robcp::huber_cusum) (H)
+  rej_huber <- if ("H" %in% active_models) {
+    tryCatch({
+      res <- robcp::huber_cusum(x, fun = "HLm")
+      as.integer(res$p.value < 0.05)
+    }, error = function(e) NA_integer_)
+  } else NA_integer_
 
-  # 5. Test 4: Wilcoxon-Mann-Whitney test (robcp::wmw_test)
-  rej_wmw <- tryCatch({
-    res <- robcp::wmw_test(x, h = 1L)
-    as.integer(res$p.value < 0.05)
-  }, error = function(e) NA_integer_)
+  # 5. Test 4: Wilcoxon-Mann-Whitney test (robcp::wmw_test) (WMW)
+  rej_wmw <- if ("WMW" %in% active_models) {
+    tryCatch({
+      res <- robcp::wmw_test(x, h = 1L)
+      as.integer(res$p.value < 0.05)
+    }, error = function(e) NA_integer_)
+  } else NA_integer_
 
-  # 6. Test 5: Schmidt (2021) Gini test for heteroscedastic time series
-  rej_schmidt <- tryCatch({
-    res <- schmidt_test(x, s = 0.7, q = 0.4, c0 = 10, M_psi = 300)
-    as.integer(res$p_value < 0.05)
-  }, error = function(e) NA_integer_)
+  # 6. Test 5: Schmidt (2021) Gini test for heteroscedastic time series (S)
+  rej_schmidt <- if ("S" %in% active_models) {
+    tryCatch({
+      res <- schmidt_test(x, s = 0.7, q = 0.4, c0 = 10, M_psi = 300)
+      as.integer(res$p_value < 0.05)
+    }, error = function(e) NA_integer_)
+  } else NA_integer_
 
   list(
     rej_our     = rej_our,
@@ -216,10 +278,11 @@ clusterSetRNGStream(cl, 123)
 
 clusterExport(cl, c(
   "run_one_comparison", "ARMA_mu", "CUSUM.mean", "get_teta", "solve_teta",
-  "int.par.mean", "var.est.mean", "schmidt_test",
+  "int.par.mean", "var.est.mean", "schmidt_test", "cv_optimal_bandwidth_location",
   "Welsh.rho", "Welsh.psi", "Welsh.psi.prime", "Welsh.weight",
   "tukey_weight", "tukey_loss_derivative", "tukey_loss_2nd_derivative",
-  "ar_params", "ma_params", "mc_cusum_reps", "k_bandwidth"
+  "ar_params", "ma_params", "mc_cusum_reps", "k_bandwidth", "active_models",
+  "use_cv", "cv_grid_vec"
 ))
 
 invisible(clusterEvalQ(cl, {
@@ -249,7 +312,10 @@ results_list <- foreach(
     ar_p          = ar_params,
     ma_p          = ma_params,
     b_cusum       = mc_cusum_reps,
-    k_val         = k_bandwidth
+    k_val         = k_bandwidth,
+    active_models = active_models,
+    use_cv        = use_cv,
+    cv_grid       = cv_grid_vec
   )
 
   data.frame(
@@ -274,23 +340,25 @@ elapsed <- (proc.time() - t_start)[3]
 cat(sprintf("Simulation finished in %.2f seconds (%.2f minutes).\n", elapsed, elapsed / 60))
 
 # Save raw replication data
-write.csv(results_list, "sim_results_cpd_comparison.csv", row.names = FALSE)
-cat("Saved raw simulation results to sim_results_cpd_comparison.csv\n")
+write.csv(results_list, raw_out_file, row.names = FALSE)
+cat(sprintf("Saved raw simulation results to %s\n", raw_out_file))
 
 # Compute and save summary rates
 suppressPackageStartupMessages(library(dplyr))
+safe_mean <- function(v) if (all(is.na(v))) NA_real_ else round(mean(v, na.rm = TRUE), 4)
+
 summary_df <- results_list %>%
   group_by(hp_scenario, contamination, innov_dist, var_scenario, n) %>%
   summarise(
     reps         = n(),
-    rate_our     = mean(rej_our, na.rm = TRUE),
-    rate_hl      = mean(rej_hl, na.rm = TRUE),
-    rate_huber   = mean(rej_huber, na.rm = TRUE),
-    rate_wmw     = mean(rej_wmw, na.rm = TRUE),
-    rate_schmidt = mean(rej_schmidt, na.rm = TRUE),
+    rate_our     = safe_mean(rej_our),
+    rate_hl      = safe_mean(rej_hl),
+    rate_huber   = safe_mean(rej_huber),
+    rate_wmw     = safe_mean(rej_wmw),
+    rate_schmidt = safe_mean(rej_schmidt),
     .groups      = "drop"
   )
-write.csv(summary_df, "sim_summary_cpd_comparison.csv", row.names = FALSE)
-cat("Saved summary rates to sim_summary_cpd_comparison.csv\n")
+write.csv(summary_df, summary_out_file, row.names = FALSE)
+cat(sprintf("Saved summary rates to %s\n", summary_out_file))
 
 

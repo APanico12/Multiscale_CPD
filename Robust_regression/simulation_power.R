@@ -39,6 +39,19 @@ parse_arg <- function(arg_name, default_val) {
   return(default_val)
 }
 
+# Model specification flags: --LMCH (or --LMHC), --LMUH, --model=..., --models=...
+model_arg_val <- parse_arg("model", parse_arg("models", NULL))
+if (!is.null(model_arg_val)) {
+  model_types <- strsplit(toupper(model_arg_val), ",")[[1]]
+  model_types <- ifelse(model_types == "LMHC", "LMCH", model_types)
+} else if (any(c("--LMUH") %in% args)) {
+  model_types <- c("LMUH")
+} else if (any(c("--LMCH", "--LMHC") %in% args)) {
+  model_types <- c("LMCH")
+} else {
+  model_types <- c("LMCH") # Default to LMCH
+}
+
 if (is_quick) {
   log_msg("======================================================================\n")
   log_msg(" RUNNING POWER SIMULATION IN QUICK / TEST MODE\n")
@@ -46,7 +59,6 @@ if (is_quick) {
   MC_reps     <- 1
   B_boot      <- 20
   n_values    <- c(150)
-  model_types <- c("LMHC")
   innov_dists <- c("normal", "t3")
   hp_list     <- c("H1", "H2")
   delta_grid  <- c(0.0, 0.50, 1.00)
@@ -71,9 +83,6 @@ if (is_quick) {
   
   hyp_str     <- parse_arg("hyp", "H1,H2")
   hp_list     <- strsplit(hyp_str, ",")[[1]]
-  
-  mod_str     <- parse_arg("models", "LMHC")
-  model_types <- strsplit(mod_str, ",")[[1]]
   
   innov_str   <- parse_arg("innov", Sys.getenv("INNOV_DISTS", "normal,t3"))
   innov_str   <- gsub("t_3", "t3", innov_str, ignore.case = TRUE)
@@ -105,8 +114,28 @@ if (is_quick) {
   }
 }
 
-use_cv      <- any(c("--cv", "--use_cv") %in% args) || (tolower(parse_arg("bandwidth", "0.45")) == "cv")
-k_param     <- if (use_cv) "CV" else as.numeric(parse_arg("bandwidth", "0.45"))
+# Bandwidth rate exponent k (default: 0.45 -> k_n = floor(n^0.45))
+k_str       <- parse_arg("k", parse_arg("bandwidth", "0.45"))
+k_bandwidth <- if (tolower(k_str) == "cv") "CV" else as.numeric(k_str)
+
+# Cross-validation for bandwidth selection
+# Accepts --use_cv=TRUE/FALSE, --cv=TRUE/FALSE, or logical flag
+cv_arg_val  <- parse_arg("use_cv", parse_arg("cv", NULL))
+use_cv      <- if (!is.null(cv_arg_val)) {
+  as.logical(toupper(cv_arg_val) %in% c("TRUE", "T", "1", "YES"))
+} else {
+  any(c("--cv", "--use_cv") %in% args) || (is.character(k_bandwidth) && tolower(k_bandwidth) == "cv")
+}
+
+# CV candidate grid (rates or integer window sizes, e.g. "0.45,0.65" or "default")
+cv_grid_str <- parse_arg("cv_grid", "0.45,0.65")
+cv_grid_vec <- if (tolower(cv_grid_str) %in% c("default", "null", "none")) {
+  NULL
+} else {
+  as.numeric(strsplit(cv_grid_str, ",")[[1]])
+}
+
+k_param     <- if (use_cv) "CV" else k_bandwidth
 
 # ------------------------------------------------------------------------------
 # 2. Build Simulation Design Grid
@@ -158,15 +187,21 @@ rownames(full_grid) <- NULL
 
 cat(sprintf("Total power simulation tasks: %d (%d design points x %d replications)\n",
             nrow(full_grid), nrow(base_design), MC_reps))
-cat(sprintf("Bootstrap iterations B: %d | Loss: %s | Bandwidth k: %s\n", 
-            B_boot, loss_choice, as.character(k_param)))
+cv_info_str <- if (use_cv) {
+  sprintf("TRUE (Grid: %s)", if (is.null(cv_grid_vec)) "default [N^0.35, N^0.65]" else paste(cv_grid_vec, collapse = ","))
+} else {
+  sprintf("FALSE (Fixed k = %s)", as.character(k_param))
+}
+cat(sprintf("Bootstrap iterations B: %d | Loss: %s | Bandwidth k: %s | Use CV: %s\n", 
+            B_boot, loss_choice, as.character(k_param), cv_info_str))
 
 # ------------------------------------------------------------------------------
 # 3. Worker Function
 # ------------------------------------------------------------------------------
 
 run_one_power_sim <- function(model_type, n, innov_dist, contamination, epsilon,
-                              hp_scenario, delta, B_boot, loss, rep_seed, k_val = 0.45) {
+                              hp_scenario, delta, B_boot, loss, rep_seed,
+                              k_val = 0.45, use_cv = FALSE, cv_grid = c(0.45, 0.65)) {
   # When delta = 0, DGP behaves as H0
   cur_hp <- if (abs(delta) < 1e-6) "H0" else hp_scenario
   
@@ -189,18 +224,30 @@ run_one_power_sim <- function(model_type, n, innov_dist, contamination, epsilon,
   d <- ncol(X)
   C_mat <- diag(d)
   
+  # Bandwidth selection: CV or fixed
+  if (isTRUE(use_cv)) {
+    cv_res       <- cv_optimal_bandwidth_regression(Y, X, k_grid = cv_grid, loss = loss)
+    k_eval       <- cv_res$k_opt
+    betahat_eval <- cv_res$betahat_opt
+  } else {
+    k_eval       <- k_val
+    betahat_eval <- NULL
+  }
+  
   # 1. Proposed Linearized CUSUM Test
   res_lin <- tryCatch({
     CUSUM.regression(
       Y          = Y,
       X          = X,
       C_mat      = C_mat,
-      k          = k_val,
+      betahat    = betahat_eval,
+      k          = k_eval,
       lag        = NULL,
       block      = NULL,
       B          = B_boot,
       loss       = loss,
       linearized = TRUE,
+      use_cv     = FALSE,
       plotting   = FALSE
     )
   }, error = function(e) list(test_stat = NA_real_, p_value = NA_real_, break_u = NA_real_, reject_95 = FALSE))
@@ -211,12 +258,13 @@ run_one_power_sim <- function(model_type, n, innov_dist, contamination, epsilon,
       Y          = Y,
       X          = X,
       C_mat      = C_mat,
-      k          = k_val,
+      k          = k_eval,
       lag        = NULL,
       block      = NULL,
       B          = B_boot,
       loss       = "L2",
       linearized = TRUE,
+      use_cv     = FALSE,
       plotting   = FALSE
     )
   }, error = function(e) list(test_stat = NA_real_, p_value = NA_real_, break_u = NA_real_, reject_95 = FALSE))
@@ -253,7 +301,7 @@ if (is_quick && cores > 4) cores <- 4
 cl <- makeCluster(cores)
 registerDoParallel(cl)
 clusterSetRNGStream(cl, iseed = 202630)
-clusterExport(cl, c("run_one_power_sim", "loss_choice", "B_boot", "k_param"))
+clusterExport(cl, c("run_one_power_sim", "loss_choice", "B_boot", "k_param", "use_cv", "cv_grid_vec", "cv_optimal_bandwidth_regression"))
 
 invisible(clusterEvalQ(cl, {
   source("DGP.R")
@@ -265,12 +313,14 @@ invisible(clusterEvalQ(cl, {
 
 log_msg(sprintf("Executing POWER simulation across %d cores...\n", cores))
 
-raw_csv <- "sim_results_power.csv"
+model_suffix <- paste(unique(full_grid$model_type), collapse = "_")
+raw_csv      <- sprintf("sim_results_power_%s.csv", model_suffix)
+summary_csv  <- sprintf("sim_summary_power_%s.csv", model_suffix)
 
 # Handle fresh start flag (--fresh or --reset)
 if (is_fresh && file.exists(raw_csv)) {
   file.remove(raw_csv)
-  log_msg("Fresh start flag detected: Removed existing sim_results_power.csv.\n")
+  log_msg(sprintf("Fresh start flag detected: Removed existing %s.\n", raw_csv))
 }
 
 grid_keys <- paste(full_grid$iteration, full_grid$model_type, full_grid$n,
@@ -358,7 +408,9 @@ if (total_to_run > 0) {
         B_boot        = B_boot,
         loss          = loss_choice,
         rep_seed      = r_seed,
-        k_val         = k_param
+        k_val         = k_param,
+        use_cv        = use_cv,
+        cv_grid       = cv_grid_vec
       )
       
       data.frame(
@@ -429,8 +481,10 @@ names(summary_power)[names(summary_power) == "rej_l2"]    <- "rate_l2"
 names(summary_power)[names(summary_power) == "break_lin"] <- "mean_loc_linearized"
 names(summary_power)[names(summary_power) == "break_l2"]  <- "mean_loc_l2"
 
-summary_csv <- "sim_summary_power.csv"
 write.csv(summary_power, summary_csv, row.names = FALSE)
+if (summary_csv != "sim_summary_power.csv") {
+  write.csv(summary_power, "sim_summary_power.csv", row.names = FALSE)
+}
 log_msg(sprintf("Aggregated empirical power summary saved to: %s\n", summary_csv))
 
 log_msg("\n=========================================================================\n")

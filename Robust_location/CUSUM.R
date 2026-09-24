@@ -236,9 +236,11 @@ cv_optimal_bandwidth_location <- function(x, k_grid = NULL, lag = NULL,
   global_sig <- median(abs(x - median(x))) / 0.6745
   if (is.na(global_sig) || global_sig < 1e-5) global_sig <- 1.0
 
+  teta_list <- vector("list", length(k_grid))
   for (i in seq_along(k_grid)) {
     k_val <- k_grid[i]
     teta_k <- get_teta(x, k = k_val, c = c, loss = loss)
+    teta_list[[i]] <- teta_k
 
     t_start <- k_val
     t_end   <- N - lag
@@ -265,7 +267,8 @@ cv_optimal_bandwidth_location <- function(x, k_grid = NULL, lag = NULL,
     k_opt_rate = round(best_rate, 4),
     lag        = lag,
     cv_losses  = round(cv_losses, 4),
-    k_grid     = k_grid
+    k_grid     = k_grid,
+    teta_opt   = teta_list[[best_idx]]
   ))
 }
 

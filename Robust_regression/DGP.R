@@ -242,19 +242,14 @@ generate_tv_regression_dgp <- function(n = 500,
       }
     }
     
-    # Replacement Rule: Amplify the beta effect during regime bursts S_t = 1
-    if (model_type == "LMCH") {
-      signal_amplified <- rowSums(X * (ro_multiplier * beta_mat))
-      Y_star <- baseline_trend + signal_amplified + noise_clean
-    } else if (model_type == "LMUH") {
-      signal_amplified <- rowSums(X * (ro_multiplier * beta_mat))
-      Y_star <- baseline_trend + signal_amplified + noise_clean
-    } else if (model_type == "LMAT") {
-      signal_amplified <- rowSums(W * (ro_multiplier * beta_mat))
-      Y_star <- baseline_trend + signal_amplified + noise_clean
-    }
+    # Replacement Outliers (RO) matching robust location:
+    # Contaminated observation is replaced by Y^*_{t,n} = Y_{t,n} + (-1)^{\xi_t} K
+    # Y_{t,n}^{\text{RO}} = (1 - S_t) Y_{t,n} + S_t Y^*_{t,n}
+    xi_ro   <- rbinom(n, size = 1, prob = 0.5)
+    sign_ro <- ifelse(xi_ro == 1, -1.0, 1.0)
+    Y_star  <- Y_clean + sign_ro * mag_K
     
-    Y_obs <- (1 - S) * Y_clean + S * Y_star
+    Y_obs   <- (1 - S) * Y_clean + S * Y_star
     outlier_flags <- S
   }
   
@@ -358,19 +353,19 @@ demo_dgp <- function(save_files = TRUE,
   
   # Generate 4 contamination scenarios exclusively for Model I (LMCH)
   # 1. Clean
-  d_clean <- generate_tv_regression_dgp(n = n, model_type = "LMCH", contamination = "Clean", seed = seed)
+  d_clean <- generate_tv_regression_dgp(n = n, model_type = "LMUH", contamination = "Clean", seed = seed)
   
   # 2. Additive Outliers (AO)
-  d_ao <- generate_tv_regression_dgp(n = n, model_type = "LMCH", contamination = "AO",
+  d_ao <- generate_tv_regression_dgp(n = n, model_type = "LMUH", contamination = "AO",
                                      K = 20, epsilon = 0.06, seed = seed)
   
   # 3. Innovation Outliers (IO)
-  d_io <- generate_tv_regression_dgp(n = n, model_type = "LMCH", contamination = "IO",
+  d_io <- generate_tv_regression_dgp(n = n, model_type = "LMUH", contamination = "IO",
                                      K = 20, epsilon = 0.06, seed = seed)
   
   # 4. Replacement Outliers (RO)
-  d_ro <- generate_tv_regression_dgp(n = n, model_type = "LMCH", contamination = "RO",
-                                     ro_multiplier = 4.0, epsilon = 0.06, kappa = 0.40, seed = seed)
+  d_ro <- generate_tv_regression_dgp(n = n, model_type = "LMUH", contamination = "RO",
+                                     K = 20, epsilon = 0.06, kappa = 0.40, seed = seed)
   
   draw_panels <- function() {
     if (layout == "2x2") {
