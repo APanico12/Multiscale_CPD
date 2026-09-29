@@ -9,8 +9,10 @@
 #SBATCH --qos=cpu
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=60
+#SBATCH --ntasks-per-node=64
 #SBATCH --time=0-48:00:00
 #SBATCH --mem=150G
+#SBATCH --mem=120G
 
 # --- USER-CONFIGURABLE PARAMETERS ---
 # 1. Bandwidth rate exponent k (e.g. 0.45 -> window size k_n = floor(n^0.45)):
@@ -20,8 +22,8 @@ BANDWIDTH="0.45"
 # 2. Cross-Validation (CV) for bandwidth selection:
 #    Set USE_CV="TRUE" to select k_n per replication via forward predictive CV,
 #    or USE_CV="FALSE" to use the fixed rate specified in BANDWIDTH above.
-USE_CV="FALSE"
-CV_GRID="0.45,0.65"
+USE_CV="TRUE"
+CV_GRID="0.45,0.50,0.55,0.60,0.65" # approximately 22H with this configuration
 
 # 3. Monte Carlo replications and design grid:
 REPS=1000

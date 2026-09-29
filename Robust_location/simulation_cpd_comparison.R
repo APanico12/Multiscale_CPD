@@ -342,23 +342,23 @@ cat(sprintf("Simulation finished in %.2f seconds (%.2f minutes).\n", elapsed, el
 # Save raw replication data
 write.csv(results_list, raw_out_file, row.names = FALSE)
 cat(sprintf("Saved raw simulation results to %s\n", raw_out_file))
-
-# Compute and save summary rates
-suppressPackageStartupMessages(library(dplyr))
-safe_mean <- function(v) if (all(is.na(v))) NA_real_ else round(mean(v, na.rm = TRUE), 4)
-
-summary_df <- results_list %>%
-  group_by(hp_scenario, contamination, innov_dist, var_scenario, n) %>%
-  summarise(
-    reps         = n(),
-    rate_our     = safe_mean(rej_our),
-    rate_hl      = safe_mean(rej_hl),
-    rate_huber   = safe_mean(rej_huber),
-    rate_wmw     = safe_mean(rej_wmw),
-    rate_schmidt = safe_mean(rej_schmidt),
-    .groups      = "drop"
-  )
-write.csv(summary_df, summary_out_file, row.names = FALSE)
-cat(sprintf("Saved summary rates to %s\n", summary_out_file))
+# Compute and save summary rates using pure base R (no dplyr dependency)
+tryCatch({
+  rate_cols <- intersect(c("rej_our", "rej_hl", "rej_huber", "rej_wmw", "rej_schmidt"), names(results_list))
+  group_cols <- c("hp_scenario", "contamination", "innov_dist", "var_scenario", "n")
+  
+  if (length(rate_cols) > 0) {
+    summary_df <- aggregate(
+      results_list[rate_cols],
+      by = results_list[group_cols],
+      FUN = function(v) if (all(is.na(v))) NA_real_ else round(mean(v, na.rm = TRUE), 4)
+    )
+    names(summary_df)[names(summary_df) %in% rate_cols] <- paste0("rate_", sub("^rej_", "", rate_cols))
+    write.csv(summary_df, summary_out_file, row.names = FALSE)
+    cat(sprintf("Saved summary rates to %s\n", summary_out_file))
+  }
+}, error = function(e) {
+  cat(sprintf("[Notice] Could not generate summary file (%s). Raw CSV is safely saved.\n", e$message))
+})
 
 

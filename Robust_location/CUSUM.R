@@ -496,17 +496,49 @@ CUSUM.mean <- function(x, teta = NULL, lag = NULL, block = NULL, cutoff = 1,
   q5  <- quantile(Z.mc, 0.95)
 
   if (plotting) {
-    plot((1:N) / N, Tu, xlab = "u", ylab = "T(u)", type = "l",
-         ylim = c(-max(q5, Z) * 1.1, max(q5, Z) * 1.1))
-    abline(h = q10, lty = 2)
-    abline(h = -q10, lty = 2)
-    abline(h = q5, lty = 3)
-    abline(h = -q5, lty = 3)
-    abline(v = max_index / N, col = "red", lty = 2)
-    text(max_index / N, 0, labels = paste(max_index), pos = 3, col = "red")
+    y_lim <- max(q5, Z) * 1.25
+    u_grid <- (1:N) / N
+    plot(u_grid, Tu,
+         xlab = expression(bold(paste("Rescaled Time ", italic(u == t/n)))),
+         ylab = expression(bold(paste("Test Statistic ", italic(T[n](u))))),
+         type = "n",
+         ylim = c(-y_lim, y_lim),
+         las = 1,
+         bty = "n")
+    grid(col = "gray88", lty = 2, lwd = 0.9)
+    abline(h = 0, col = "gray70", lty = 1, lwd = 0.8)
+    abline(h = c(q5, -q5), col = "#c62828", lty = 2, lwd = 1.6)
+    abline(h = c(q10, -q10), col = "gray40", lty = 3, lwd = 1.3)
+    abline(v = max_index / N, col = "#2e7d32", lty = 4, lwd = 1.6)
+    lines(u_grid, Tu, col = "#1565c0", lwd = 2.0)
+    box(which = "plot", lty = "solid", lwd = 2.0, col = "black")
+    legend("topleft",
+           legend = c(
+             expression(italic(T[n](u)) ~ "(Linearized CUSUM)"),
+             as.expression(bquote("95% Critical Value (" * italic(q)[0.05] == .(round(q5, 3)) * ")")),
+             as.expression(bquote("90% Critical Value (" * italic(q)[0.10] == .(round(q10, 3)) * ")")),
+             as.expression(bquote("Detected Break (" * widehat(italic(u)) == .(round(max_index / N, 3)) * ")"))
+           ),
+           col = c("#1565c0", "#c62828", "gray40", "#2e7d32"),
+           lty = c(1, 2, 3, 4),
+           lwd = c(2.0, 1.6, 1.3, 1.6),
+           bg = "white",
+           box.col = "gray80",
+           box.lwd = 1.0,
+           cex = 0.95,
+           inset = c(0.02, 0.03))
   }
 
-  res <- list(p_value = mean(Z.mc > Z), test_stat = Z, max_index = max_index)
+  res <- list(
+    p_value   = mean(Z.mc > Z),
+    test_stat = Z,
+    max_index = max_index,
+    Tu        = Tu,
+    q95       = as.numeric(q5),
+    q90       = as.numeric(q10),
+    cutoff    = cutoff,
+    u         = (1:N) / N
+  )
   return(res)
 }
 

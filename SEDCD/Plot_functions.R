@@ -360,115 +360,263 @@ plot_prices_and_returns <- function(df, date_col_name = "Date", filename = "pric
 
 }
 
-# ── 9. plot_return_correlations ───────────────────────────────────────────────
-#' Create a Pairs Plot of Asset Returns Colored by Date
+# ── 9. plot_electricity_ts_returns ───────────────────────────────────────────
+#' Plot Historical Electricity Prices and Daily Returns for Core Countries
 #'
-#' This function generates a scatterplot matrix (pairs plot) for multivariate time
-#' series data (e.g., standardized residuals) using base R graphics. It is
-#' designed to visualize how correlations between pairs of assets change over
-#' time.
+#' Creates a 6x2 multi-panel publication figure displaying historical prices
+#' (left column) and daily returns / price differences (right column) for the
+#' core 6 European electricity markets.
+#' No titles or y-axis labels. X-axis labels only at the bottom row.
 #'
-#' @param df A dataframe where one column is the Date and subsequent columns are returns.
-#' @param date_col_name A string specifying the name of the date column.
-#' @param point_alpha Numeric; controls the transparency of the scatter points (0 to 1).
-plot_return_correlations <- function(df, date_col_name = "Date", point_alpha = 0.4) {
-
-  # --- 1. Setup plotting environment ---
-  op <- par(no.readonly = TRUE)
-  on.exit(par(op))
-
-  # --- 2. Prepare data and colors ---
-  if (!inherits(df[[date_col_name]], c("Date", "POSIXt"))) {
-    df[[date_col_name]] <- as.Date(df[[date_col_name]])
-  }
-  dates <- df[[date_col_name]]
-  numeric_cols <- setdiff(names(df), date_col_name)
-  n_assets <- length(numeric_cols)
-
-  if (n_assets < 2) {
-    warning("Need at least two numeric columns to create a pairs plot.")
-    return(invisible(NULL))
-  }
+#' @param df Data frame containing Date and country price series
+#' @param core_countries Vector of country codes (default: c("DE_LU", "IT_NORD", "FR", "BE", "NL", "PL"))
+#' @param filename Optional output filename (.pdf or .png)
+#' @param is_pdf Logical, whether output is PDF (TRUE) or PNG (FALSE)
+plot_electricity_ts_returns <- function(df,
+                                        core_countries = c("DE_LU", "IT_NORD", "FR", "BE", "NL", "PL"),
+                                        filename = NULL,
+                                        is_pdf = FALSE) {
   
-  # Get all unique pairs of countries
-  country_pairs <- combn(numeric_cols, 2, simplify = FALSE)
-  n_plots <- length(country_pairs)
-  n_cols <- 5
-  n_rows <- 3 # We have 15 pairs from 6 countries
+  if (!is.null(filename)) {
+    if (is_pdf) {
+      pdf(filename, width = 11.5, height = 11.0)
+      on.exit(dev.off(), add = TRUE)
+    } else {
+      png(filename, width = 3450, height = 3300, res = 300)
+      on.exit(dev.off(), add = TRUE)
+    }
+  }
 
-  # Create a color gradient based on date
-  date_numeric <- as.numeric(dates)
-  date_norm <- (date_numeric - min(date_numeric, na.rm = TRUE)) /
-               (max(date_numeric, na.rm = TRUE) - min(date_numeric, na.rm = TRUE))
+  op <- par(no.readonly = TRUE)
+  on.exit(par(op), add = TRUE)
 
-  col_ramp <- colorRampPalette(c("white", .COL_PROCESS)) # White to Blue
-  gradient_colors <- col_ramp(100)
-  point_colors <- gradient_colors[floor(date_norm * 99) + 1]
+  dates <- as.Date(substr(df$Date, 1, 10))
+  price_mat <- as.matrix(df[, core_countries])
+  ret_mat <- diff(price_mat)
+  ret_dates <- dates[-1]
+
+  year_dates <- as.Date(c("2020-01-01", "2021-01-01", "2022-01-01", "2023-01-01", 
+                          "2024-01-01", "2025-01-01", "2026-01-01"))
+  year_labels <- c("2020", "2021", "2022", "2023", "2024", "2025", "2026")
+
+  # Layout: 6 rows x 2 columns
+  # No outer titles. Y-labels removed. Dates removed. X-labels only at the bottom 2 plots.
+  par(mfrow = c(6, 2),
+      oma   = c(1.5, 0.8, 1.0, 0.8),
+      mar   = c(2.2, 3.6, 1.3, 1.0),
+      mgp   = c(2.0, 0.6, 0),
+      tcl   = -0.35)
+
+  col_line <- "#1565c0"
+  col_grid <- "gray90"
+  n_rows <- length(core_countries)
+
+  for (i in seq_along(core_countries)) {
+    c_code <- core_countries[i]
+    is_last_row <- (i == n_rows)
+    
+    # --- Column 1: Historical Prices ---
+    p_series <- price_mat[, i]
+    y_lim_p <- extendrange(p_series, f = 0.12)
+    
+    plot(dates, p_series, type = "n",
+         xlim = range(dates), ylim = y_lim_p,
+         xlab = if (is_last_row) "Date" else "",
+         ylab = "",
+         font.lab = 2, cex.lab = 1.0, las = 1, xaxt = "n")
+    grid(col = col_grid, lty = 2, lwd = 0.8)
+    
+    if (is_last_row) {
+      axis.Date(1, at = year_dates, labels = year_labels, cex.axis = 0.95)
+    } else {
+      axis.Date(1, at = year_dates, labels = FALSE, cex.axis = 0.95)
+    }
+    
+    # Trajectory line
+    lines(dates, p_series, col = col_line, lwd = 1.1)
+    
+    # Subpanel header (only panel identifier, no dates, no break marker)
+    text(dates[1] + 15, y_lim_p[2] * 0.98, labels = paste0("Historical prices (", c_code, ")"),
+         font = 2, cex = 1.0, adj = c(0, 1), col = "gray10")
+    
+    box(which = "plot", lty = "solid", lwd = 1.3, col = "black")
+    
+    # --- Column 2: Daily Returns ---
+    r_series <- ret_mat[, i]
+    y_lim_r <- extendrange(r_series, f = 0.12)
+    
+    plot(ret_dates, r_series, type = "n",
+         xlim = range(dates), ylim = y_lim_r,
+         xlab = if (is_last_row) "Date" else "",
+         ylab = "",
+         font.lab = 2, cex.lab = 1.0, las = 1, xaxt = "n")
+    grid(col = col_grid, lty = 2, lwd = 0.8)
+    
+    if (is_last_row) {
+      axis.Date(1, at = year_dates, labels = year_labels, cex.axis = 0.95)
+    } else {
+      axis.Date(1, at = year_dates, labels = FALSE, cex.axis = 0.95)
+    }
+    
+    # Baseline & trajectory line
+    abline(h = 0, col = "gray75", lty = 1, lwd = 0.8)
+    lines(ret_dates, r_series, col = col_line, lwd = 0.85)
+    
+    # Subpanel header (only panel identifier, no dates, no break marker)
+    text(dates[1] + 15, y_lim_r[2] * 0.98, labels = paste0("Daily returns (", c_code, ")"),
+         font = 2, cex = 1.0, adj = c(0, 1), col = "gray10")
+    
+    box(which = "plot", lty = "solid", lwd = 1.3, col = "black")
+  }
+
+  invisible(NULL)
+}
+
+# ── 10. plot_residual_bivariate_scatter ───────────────────────────────────────
+#' Plot Pairwise Bivariate Residual Scatter Plots with Time Progression Hue
+#'
+#' Generates a 3x5 multi-panel grid of bivariate scatter plots for all 15 pairs
+#' of the 6 core electricity markets. Points are colored with a continuous time
+#' hue (light sky blue in 2020 to deep navy in 2026) to illustrate dynamic co-dependence.
+#'
+#' @param df Data frame containing Date and price/return series
+#' @param core_countries Vector of country codes (default: c("DE_LU", "IT_NORD", "FR", "BE", "NL", "PL"))
+#' @param residuals_type "mscale" (robust Dennis-Welsch M-scale, default), "garch", or "returns"
+#' @param point_alpha Point opacity (default 0.45)
+#' @param filename Optional output filename (.pdf or .png)
+#' @param is_pdf Logical, whether output is PDF or PNG
+plot_residual_bivariate_scatter <- function(df,
+                                            core_countries = c("DE_LU", "IT_NORD", "FR", "BE", "NL", "PL"),
+                                            residuals_type = c("mscale", "garch", "returns"),
+                                            point_alpha = 0.45,
+                                            filename = NULL,
+                                            is_pdf = FALSE) {
+  
+  residuals_type <- match.arg(residuals_type)
+  
+  if (!is.null(filename)) {
+    if (is_pdf) {
+      pdf(filename, width = 12.0, height = 7.8)
+      on.exit(dev.off(), add = TRUE)
+    } else {
+      png(filename, width = 3600, height = 2340, res = 300)
+      on.exit(dev.off(), add = TRUE)
+    }
+  }
+
+  op <- par(no.readonly = TRUE)
+  on.exit(par(op), add = TRUE)
+
+  dates <- as.Date(substr(df$Date, 1, 10))
+  price_mat <- as.matrix(df[, core_countries])
+  ret_mat <- diff(price_mat)
+  ret_dates <- dates[-1]
+  N <- nrow(ret_mat)
+  d <- ncol(ret_mat)
+
+  # Compute standardized residuals
+  if (residuals_type == "mscale") {
+    Z_mat <- matrix(0, nrow = N, ncol = d)
+    colnames(Z_mat) <- core_countries
+    for (j in 1:d) {
+      diff_j <- ret_mat[, j] - median(ret_mat[, j])
+      mad_j  <- median(abs(diff_j)) / 0.6745
+      if (is.na(mad_j) || mad_j < 1e-4) mad_j <- sd(diff_j)
+      sig_j  <- if (exists("solve_mscale_fast", mode = "function")) {
+        solve_mscale_fast(diff_j, mad_j, c = 2.985)
+      } else {
+        mad_j
+      }
+      Z_mat[, j] <- diff_j / sig_j
+    }
+  } else if (residuals_type == "garch" && requireNamespace("rugarch", quietly = TRUE)) {
+    Z_mat <- matrix(0, nrow = N, ncol = d)
+    colnames(Z_mat) <- core_countries
+    spec <- rugarch::ugarchspec(variance.model = list(model = "sGARCH", garchOrder = c(1, 1)),
+                                mean.model = list(armaOrder = c(1, 1), include.mean = TRUE),
+                                distribution.model = "std")
+    for (j in 1:d) {
+      fit <- rugarch::ugarchfit(spec = spec, data = ret_mat[, j], solver = "hybrid")
+      Z_mat[, j] <- as.numeric(rugarch::residuals(fit, standardize = TRUE))
+    }
+  } else {
+    Z_mat <- scale(ret_mat)
+    colnames(Z_mat) <- core_countries
+  }
+
+  # Time hue gradient
+  date_num <- as.numeric(ret_dates)
+  date_norm <- (date_num - min(date_num)) / (max(date_num) - min(date_num))
+  col_ramp <- colorRampPalette(c("#90caf9", "#42a5f5", "#1976d2", "#0d47a1", "#051d40"))
+  palette_100 <- col_ramp(100)
+  point_colors <- palette_100[pmin(100, pmax(1, floor(date_norm * 99) + 1))]
   point_colors_alpha <- adjustcolor(point_colors, alpha.f = point_alpha)
 
-  # --- 3. Setup multi-panel layout with space for a legend ---
-  # Create a layout with 3x5 for plots and a row at the bottom for the legend
-  layout_matrix <- matrix(c(1:n_plots, rep(n_plots + 1, n_cols)), nrow = n_rows + 1, ncol = n_cols, byrow = TRUE)
-  # Increase relative height of the legend panel for better readability
-  layout(layout_matrix, heights = c(rep(1, n_rows), 0.4))
+  # Layout: 15 pairwise plots (3x5) + colorbar panel
+  pairs_list <- combn(core_countries, 2, simplify = FALSE)
+  n_pairs <- length(pairs_list)
 
-  # Set graphical parameters for the scatterplots
-  par(
-    # c(bottom, left, top, right). Increased left margin for y-label visibility
-    mar       = c(3.0, 3, 1, 1.0),
-    family    = .FONT_FAMILY,
-    # Use consistent and readable font sizes for axes and labels
-    cex.lab   = 0.75,
-    cex.axis  = 0.75,
-    col.axis  = .COL_AXIS,
-    col.lab   = .COL_AXIS,
-    tcl       = -0.28,
-    mgp       = c(2.2, 0.7, 0), # Adjust label positions for readability
-    bty       = "o",
-    las       = 1,
-    pty       = "s" # Make plots square
-  )
+  layout_mat <- matrix(c(1:15, rep(16, 5)), nrow = 4, ncol = 5, byrow = TRUE)
+  layout(layout_mat, heights = c(1, 1, 1, 0.28))
 
+  z_range <- c(-10, 14)
+  ticks_at <- c(-10, -5, 0, 5, 10)
 
-  # --- 4. Create the grid of scatterplots ---
-  for (pair in country_pairs) {
-    country1 <- pair[1]
-    country2 <- pair[2]
+  par(mar = c(3.2, 3.4, 1.2, 1.0),
+      mgp = c(2.0, 0.6, 0),
+      tcl = -0.35,
+      pty = "s")
 
-    # Create the plot with country names as axis labels
-    plot(df[[country1]], df[[country2]],
-         xlab = country1,
-         ylab = country2,
-         main = "", # No individual plot titles
-         pch = 20, cex = 0.5, col = point_colors_alpha)
-
-    # Add more visible reference lines at zero to highlight the tails
-    abline(h = 0, v = 0, col = "grey50", lty = "dashed", lwd = 0.8)
+  for (k in 1:n_pairs) {
+    c1 <- pairs_list[[k]][1]
+    c2 <- pairs_list[[k]][2]
+    
+    plot(Z_mat[, c1], Z_mat[, c2],
+         xlim = z_range, ylim = z_range,
+         xlab = c1, ylab = c2,
+         font.lab = 2, cex.lab = 1.05,
+         las = 1, bty = "n",
+         xaxt = "n", yaxt = "n",
+         pch = 20, cex = 0.55,
+         col = point_colors_alpha)
+    
+    grid(col = "gray92", lty = 2, lwd = 0.6)
+    abline(h = 0, col = "gray55", lty = 2, lwd = 0.9)
+    abline(v = 0, col = "gray55", lty = 2, lwd = 0.9)
+    points(Z_mat[, c1], Z_mat[, c2], pch = 20, cex = 0.55, col = point_colors_alpha)
+    
+    axis(1, at = ticks_at, labels = ticks_at, cex.axis = 0.85)
+    axis(2, at = ticks_at, labels = ticks_at, cex.axis = 0.85, las = 1)
+    box(which = "plot", lty = "solid", lwd = 1.3, col = "black")
   }
-  
-  # --- 5. Draw the color scale legend ---
-  # Reduce horizontal margins to make the legend wider.
-  par(mar = c(0.5, 1, 0.5, 1))
-  plot(c(0, 1), c(0, 1), type = 'n', axes = FALSE, xlab = '', ylab = '')
-  
-  # Draw a very wide color bar
-  legend_colors <- col_ramp(100)
-  # Define coordinates for the bar, spanning most of the horizontal space (e.g., 5% to 95%)
-  x_coords <- seq(0.05, 0.95, length.out = 101)
-  
-  # Draw the gradient as a series of thin rectangles
-  rect(x_coords[-101], 0.4, x_coords[-1], 0.7, col = legend_colors, border = NA)
-  # Draw a border around the entire color bar
-  rect(min(x_coords), 0.4, max(x_coords), 0.7, border = "grey30")
-  
-  # Add larger Date Labels below the bar
-  min_date_label <- format(min(dates, na.rm = TRUE), "%b %Y")
-  max_date_label <- format(max(dates, na.rm = TRUE), "%b %Y")
-  
-  # Align the date labels with the edges of the color bar
-  text(x = min(x_coords), y = 0.15, labels = min_date_label, cex = 1.0, col = .COL_AXIS, adj = 0)
-  text(x = max(x_coords), y = 0.15, labels = max_date_label, cex = 1.0, col = .COL_AXIS, adj = 1)
-  
-  # Add a larger, non-bold Legend Title above the bar
-  text(x = 0.5, y = 0.85, "Date", cex = 1.2, font = 1, col = .COL_AXIS)
+
+  # --- Colorbar panel at bottom ---
+  # Sleek horizontal color bar without title or break marker
+  par(mar = c(1.4, 6.0, 0.6, 6.0), pty = "m")
+  plot(c(0, 1), c(0, 1), type = "n", axes = FALSE, xlab = "", ylab = "")
+
+  x_left  <- 0.08
+  x_right <- 0.92
+  n_bars  <- 150
+  x_steps <- seq(x_left, x_right, length.out = n_bars + 1)
+  bar_cols <- col_ramp(n_bars)
+
+  for (b in 1:n_bars) {
+    rect(x_steps[b], 0.38, x_steps[b + 1], 0.78, col = bar_cols[b], border = NA)
+  }
+  rect(x_left, 0.38, x_right, 0.78, border = "gray30", lwd = 1.2)
+
+  # Explicit English date labels
+  month_abbrs <- c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+  fmt_en <- function(d) paste(month_abbrs[as.integer(format(d, "%m"))], format(d, "%Y"))
+
+  text(x_left, 0.16, labels = fmt_en(min(ret_dates)), font = 2, cex = 0.95, adj = c(0, 1), col = "gray20")
+  text(x_right, 0.16, labels = fmt_en(tail(ret_dates, 1)), font = 2, cex = 0.95, adj = c(1, 1), col = "gray20")
+
+  invisible(NULL)
+}
+
+# Alias for backwards compatibility
+plot_return_correlations <- function(df, ...) {
+  plot_residual_bivariate_scatter(df, ...)
 }

@@ -1139,14 +1139,19 @@ We compare the performance of the CUSUM test using the proposed linearized M-est
 % Table: Empirical Size Rejection Frequencies under H0 (alpha = 0.05)
 % Model: Model I (LMHC), Contamination: eps = 0.05 (alongside Clean eps = 0.00)
 % ==============================================================================
+% Table: Empirical Size Rejection Frequencies under H0 (alpha = 0.05)
+% Models: Model I (LMHC) and Model II (LMUH)
+% ==============================================================================
 \begin{table}[!htbp]
 \centering
 \caption{\footnotesize Empirical size rejection frequencies under the null hypothesis $\mathcal{H}_0$ (nominal level $\alpha = 0.05$) across $N_{\text{sim}} = 1{,}000$ Monte Carlo replications for sample sizes $n \in \{500, 1{,}000, 5{,}000\}$ under Model I (LMHC). }
+\caption{\footnotesize Empirical size rejection frequencies under the null hypothesis $\mathcal{H}_0$ (nominal level $\alpha = 0.05$) across $N_{\text{sim}} = 1{,}000$ Monte Carlo replications for sample sizes $n \in \{500, 1{,}000, 5{,}000\}$ under Model I (LMHC) and Model II (LMUH).}
 \label{tab:empirical_size_lmhc}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{lllcccccccc}
 \toprule
 & & & & \multicolumn{3}{c}{\textbf{ Linearized M-Test}} & & \multicolumn{3}{c}{\textbf{Linearized $L_2$ Test}} \\
+& & & & \multicolumn{3}{c}{\textbf{Linearized M-Test}} & & \multicolumn{3}{c}{\textbf{Linearized $L_2$ Test}} \\
 \cmidrule{5-7} \cmidrule{9-11}
 \textbf{Model} & \textbf{Noise} & \textbf{Regime} & $\boldsymbol{\varepsilon}$ & $n = 500$ & $n = 1000$ & $n = 5000$ & & $n = 500$ & $n = 1000$ & $n = 5000$ \\
 \midrule
@@ -1155,11 +1160,30 @@ We compare the performance of the CUSUM test using the proposed linearized M-est
 &                      & AO    & 0.05 & 0.067 & 0.074 & 0.065 & & 0.004 & 0.008 & 0.011 \\
 &                      & IO    & 0.05 & 0.020 & 0.021 & 0.028 & & 0.007 & 0.009 & 0.018 \\
 &                      & RO    & 0.05 & 0.077 & 0.054 & 0.071 & & 0.016 & 0.010 & 0.028 \\
+& $\mathcal{N}(0, 1)$  & Clean & 0.00 & 0.081 & 0.065 & 0.078 & & 0.023 & 0.024 & 0.028 \\
+&                      & AO    & 0.05 & 0.074 & 0.075 & 0.065 & & 0.012 & 0.018 & 0.024 \\
+&                      & IO    & 0.05 & 0.043 & 0.064 & 0.050 & & 0.015 & 0.025 & 0.032 \\
+&                      & RO    & 0.05 & 0.044 & 0.058 & 0.053 & & 0.007 & 0.019 & 0.031 \\
 \cmidrule{2-11}
 & $t_3$                & Clean & 0.00 & 0.061 & 0.062 & 0.068 & & 0.013 & 0.011 & 0.025 \\
 &                      & AO    & 0.05 & 0.047 & 0.052 & 0.057 & & 0.002 & 0.006 & 0.014 \\
 &                      & IO    & 0.05 & 0.014 & 0.012 & 0.026 & & 0.007 & 0.009 & 0.024 \\
 &                      & RO    & 0.05 & 0.050 & 0.058 & 0.058 & & 0.010 & 0.019 & 0.022 \\
+& $t_3$                & Clean & 0.00 & 0.076 & 0.072 & 0.072 & & 0.025 & 0.022 & 0.040 \\
+&                      & AO    & 0.05 & 0.066 & 0.073 & 0.061 & & 0.015 & 0.015 & 0.035 \\
+&                      & IO    & 0.05 & 0.059 & 0.061 & 0.053 & & 0.018 & 0.027 & 0.041 \\
+&                      & RO    & 0.05 & 0.057 & 0.068 & 0.065 & & 0.015 & 0.006 & 0.028 \\
+\midrule
+\multirow{8}{*}{\textbf{Model II (LMUH)}}
+& $\mathcal{N}(0, 1)$  & Clean & 0.00 & 0.048 & 0.054 & 0.044 & & 0.024 & 0.027 & 0.039 \\
+&                      & AO    & 0.05 & 0.033 & 0.042 & 0.041 & & 0.009 & 0.017 & 0.020 \\
+&                      & IO    & 0.05 & 0.033 & 0.045 & 0.038 & & 0.011 & 0.025 & 0.038 \\
+&                      & RO    & 0.05 & 0.031 & 0.039 & 0.046 & & 0.006 & 0.017 & 0.026 \\
+\cmidrule{2-11}
+& $t_3$                & Clean & 0.00 & 0.043 & 0.044 & 0.063 & & 0.025 & 0.020 & 0.047 \\
+&                      & AO    & 0.05 & 0.045 & 0.055 & 0.063 & & 0.009 & 0.010 & 0.037 \\
+&                      & IO    & 0.05 & 0.035 & 0.059 & 0.051 & & 0.014 & 0.026 & 0.038 \\
+&                      & RO    & 0.05 & 0.043 & 0.067 & 0.049 & & 0.010 & 0.010 & 0.028 \\
 \bottomrule
 \end{tabular}%
 }
@@ -1218,37 +1242,65 @@ We compare the performance of the CUSUM test using the proposed linearized M-est
 
 
 \subsection{SEDCD}
+\subsection{Smoothed Extremal Downside Correlation Density (SEDCD)}\label{sec:sim_sedcd}
 
 To assess the finite-sample performance of the proposed linearized CUSUM test for detecting structural breaks in extreme dependence, we conduct a comprehensive Monte Carlo simulation study. Our experimental design evaluates both the empirical size (under the null hypothesis of a constant extreme dependence structure) and the empirical power (under the alternative hypothesis of a changing dependence structure). Crucially, we test the robustness of the procedure to non-stationary nuisance parameters by introducing structural changes exclusively in the marginal distributions.
+To assess the finite-sample performance of the proposed linearized CUSUM test for detecting structural breaks in extreme co-dependence, we conduct a Monte Carlo simulation study across multivariate time series $\boldsymbol{X}_{t} = (X_{t,1}, \dots, X_{t,d})^\top$ with dimensions $d \in \{2, 5\}$ and sample sizes $n \in \{1000, 2000, 5000\}$. Our experimental framework evaluates empirical size control under the null hypothesis of structural stability ($\mathcal{H}_0$) as well as empirical power under abrupt ($\mathcal{H}_1$) and gradual ($\mathcal{H}_2$) transitions in the underlying tail-dependence structure, specifically in the presence of time-varying marginal nuisance parameters.
 
 We consider multivariate ($d=2, d=5$) time series with sample lengths of $2000$. To approximate the asymptotic critical values, we employ the multiplier bootstrap scheme with $B = 100$ replications for each Monte Carlo iteration $M=1000$. 
 
 To ensure our simulations capture extreme structural co-movements in the lower tail of the multivariate distribution, we utilize two distinct parametric copula families:
 
 \paragraph{ Clayton Copula.} For a $d$-dimensional vector of uniform marginals $u_1, u_2, \dots, u_d \in [0, 1]^d$, the multivariate Clayton copula is defined as:
+Following Patton \citep{Patton2006} and the Generalized Autoregressive Score (GAS) copula framework of \cite{DeLira2015}, the DGP is decomposed into dynamic univariate conditional margins and a time-varying conditional copula. Let $\mathcal{F}_{t-1} = \sigma(\boldsymbol{X}_1, \dots, \boldsymbol{X}_{t-1})$ denote the filtration generated by the observed multivariate process up to time $t-1$. The conditional process for each series $j \in \{1, \dots, d\}$ is given by:
 \begin{equation}
     C_\theta^d(u_1, \dots, u_d) = \left( \sum_{i=1}^d u_i^{-\theta} - d + 1 \right)^{-1/\theta},
     \label{eq : Clayton}
+    X_{t,j} = \mu_{t,j}(\boldsymbol{\beta}_j) + \sigma_{t,j}(\boldsymbol{\beta}_j)\,\varepsilon_{t,j},
 \end{equation}
 where $ \theta \in (0, \infty)$ governs the dependence  structure.
 The Clayton copula exhibits an asymmetric tail dependence. In particular, it possesses positive lower-tail dependence and zero upper-tail dependence. The lower-tail dependence coefficient is given by $\lambda_L = 2^{-1/\theta}$, while  $\lambda_U = 0$. Consequently, the Clayton specification is well-suited for modeling asymmetric systemic risk characterized by stronger dependence during extreme joint downturns.
+where $\mu_{t,j}(\boldsymbol{\beta}_j) = \mathbb{E}(X_{t,j} \mid \mathcal{F}_{t-1})$ and $\sigma_{t,j}^2(\boldsymbol{\beta}_j) = \operatorname{Var}(X_{t,j} \mid \mathcal{F}_{t-1})$ represent the conditional mean and conditional variance indexed by the marginal parameter vector $\boldsymbol{\beta}_j \in \mathbb{R}^q$, respectively modeled via $\text{ARMA}(p, q)$ and $\text{GJR-GARCH}(1, 1)$ specifications. The innovation vector $\boldsymbol{\varepsilon}_t = (\varepsilon_{t,1}, \dots, \varepsilon_{t,d})^\top$ satisfies $\mathbb{E}(\varepsilon_{t,j} \mid \mathcal{F}_{t-1}) = 0$ and $\operatorname{Var}(\varepsilon_{t,j} \mid \mathcal{F}_{t-1}) = 1$ for all $j \in \{1, \dots, d\}$.
 
 \paragraph{ Student-t Copula.} 
 For a $d$-dimensional vector of uniform marginals $u_1, u_2, \dots, u_d \in [0, 1]^d$, the $d$-dimensional Student-t copula  is defined as:
+The marginal innovations $\varepsilon_{t,j}$ follow a standardized Student's $t$ distribution with $\nu_j > 2$ degrees of freedom, denoted by $\varepsilon_{t,j} \stackrel{i.i.d.}{\sim} t_{\nu_j}^*(0, 1)$, such that:
 \begin{equation}
     C_{\nu, \Sigma}^d(u_1, \dots, u_d) = \mathbf{t}_{\nu, \Sigma}^d \left( t_\nu^{-1}(u_1), \dots, t_\nu^{-1}(u_d) \right),
     \label{eq : t-copula}
+    F_{j}(z; \nu_j) = T_{\nu_j}\left( z \sqrt{\frac{\nu_j}{\nu_j - 2}} \right), \quad z \in \mathbb{R},
 \end{equation}
 where $t_{\nu,\Sigma}^{(d)}$ denotes the cdf of a $d$-dimensional Student-$t$ distribution with covariance matrix $\Sigma$ and $\nu$ degrees of freedom, and $t_\nu^{-1}$ denotes the quantile function of the univariate Student-$t$ distribution. In contrast to the Clayton copula, the Student-$t$ copula exhibits symmetric upper- and lower-tail dependence. \\
+where $T_{\nu_j}(\cdot)$ denotes the standard univariate Student's $t$ cumulative distribution function with $\nu_j$ degrees of freedom. By applying the probability integral transform (PIT), we obtain the conditionally uniform random vector $\boldsymbol{U}_t = (U_{t,1}, \dots, U_{t,d})^\top$, where $U_{t,j} = F_j(\varepsilon_{t,j}; \nu_j) \sim \mathcal{U}(0, 1)$.
 
 The multivariate DGP $\mathbf{X}_t = (X_{1,t}, \dots, X_{d,t})^\top$ is obtained by transforming each uniform component derived from Equations (\ref{eq : Clayton}) and (\ref{eq : t-copula}) through the quantile function of the target distributions, defined as follows:
+Conditional on $\mathcal{F}_{t-1}$, the joint distribution of $\boldsymbol{U}_t$ is governed by a conditional copula $C(\cdot \mid \mathcal{F}_{t-1}; \theta_t)$ driven by a time-varying dependence parameter $\theta_t$. We consider two parametric families :
+\begin{enumerate}[label=(\roman*)]
+    \item \textbf{Student's $t$-copula ($C_{\rho_t, \nu}^{\text{t}}$):} Features symmetric upper and lower tail dependence, parameterized by an exchangeable dynamic linear correlation $\rho_t \in (-1, 1)$ and constant degrees of freedom $\nu > 2$.
+    \item \textbf{Clayton copula ($C_{\theta_t}^{\text{C}}$):} Features asymmetric lower tail dependence ($\lambda_l = 2^{-1/\theta_t}$) and upper tail independence ($\lambda_u = 0$), parameterized by $\theta_t \in (0, \infty)$ for $d \ge 2$.
+\end{enumerate}
 
 \paragraph{ Student-t Marginals.} 
 To introduce heavy tails, a common feature of financial returns, we use the Student-t distribution for the marginals. The cdf is denoted by $F(x; \nu)$, where $\nu$ is the degrees of freedom parameter. The baseline observations are generated by applying the inverse cdf (quantile function) to the uniform variates from the copula:
 \begin{equation} \label{eq:dgp}
     X_{i,t} = F^{-1}(U_{i,t}; \nu), \quad \text{for } i = 1, \dots, d \text{ and } t = 1, \dots, n.
+To ensure that $\theta_t$ strictly adheres to its admissible parameter space $\Theta$, we define the copula calibration function $\Lambda: \mathbb{R} \to \Theta$ such that $\theta_t = \Lambda(\psi_t)$:
+\begin{equation*}
+    \theta_t = \begin{cases}
+        \Lambda(\psi_t) = \tanh(\psi_t) \in (-1, 1), & \text{for the Student's } t\text{-copula} \; (\theta_t \equiv \rho_t), \\
+        \Lambda(\psi_t) = \exp(\psi_t) \in (0, \infty), & \text{for the Clayton copula}.
+    \end{cases}
+\end{equation*}
+The latent unconstrained parameter $\psi_t \in \mathbb{R}$ follows a $\text{GAS}(1, 1)$ autoregressive score recursion:
+\begin{equation*}
+    \psi_t = \omega_t + \beta \psi_{t-1} + \alpha s_{t-1},
+\end{equation*}
+where $|\beta| < 1$ ensures mean-reversion, and $s_{t-1}$ is the scaled score of the conditional copula log-likelihood:
+\begin{equation}
+    s_{t-1} = \mathcal{S}_{t-1} \nabla_{t-1}, \quad \nabla_{t-1} = \frac{\partial \log c(\boldsymbol{u}_{t-1}; \theta_{t-1})}{\partial \psi_{t-1}} = \frac{\partial \log c(\boldsymbol{u}_{t-1}; \theta_{t-1})}{\partial \theta_{t-1}} \cdot \Lambda'(\psi_{t-1}).
 \end{equation}
 The degrees of freedom parameter $\nu$ directly controls the tail thickness. For $\nu > 2$, the variance is finite, but as $\nu$ decreases, the tails become heavier, in order to satisfy Assumption \ref{ass:H} we require $\nu > 4$.  This setup allows us to test the procedure's performance under controlled degrees of tail extremity.
+The directional scaling $\mathcal{S}_{t-1}$ is defined by the inverse Fisher information $\mathcal{S}_{t-1} = \mathcal{I}_{t-1}^{-1/2} = \left(-\mathbb{E}_{t-2}\left[ \frac{\partial^2 \log c(\boldsymbol{u}_{t-1}; \theta_{t-1})}{\partial \psi_{t-1}^2} \right]\right)^{-1/2}$, which normalizes the variance of the score innovations across parameter regions.
 
 \paragraph{ Time-Varying Student-t Marginals.}
 To evaluate the robustness of the testing procedure against non-stationary nuisance parameters, we define a periodic scaling function $c(s)$ on the rescaled time interval $s \in [0,1]$ as $c(s) = 1 + 0.5 \sin(2\pi s)$.
@@ -1256,7 +1308,27 @@ To evaluate the robustness of the testing procedure against non-stationary nuisa
 By applying this time-varying volatility to the quantile function, the non-stationary observations are generated as:
 \begin{equation} \label{eq:dgp_time_varying}
     X_{i,t} = c\left(\frac{t}{n}\right) \cdot F^{-1}(U_{i,t}; \nu), \quad \text{for } i = 1, \dots, d \text{ and } t = 1, \dots, n.
+Within this dynamic framework, structural instability in the dependence process is induced via the baseline intercept $\omega_t$. We test the following hypotheses:
+\begin{align*}
+    \mathcal{H}_0 &: \omega_t = \omega_0, \quad \forall t \in \{1, \dots, n\} \quad , \\
+    \mathcal{H}_1 &: \omega_t = \begin{cases} 
+        \omega_{\text{pre}} & t \le \lfloor u^* n \rfloor \\ 
+        \omega_{\text{post}} = \omega_{\text{pre}} + \Delta\omega & t > \lfloor u^* n \rfloor 
+    \end{cases} \quad \text{(Abrupt change)}, \\
+    \mathcal{H}_2 &: \omega_t = \omega_0 + \Delta\omega \cdot \left(\frac{t}{n}\right) \quad \text{(Gradual drift)}.
+\end{align*}
+By Patton's conditional Sklar theorem \citep{Patton2006}, the full joint conditional CDF of $\boldsymbol{X}_t$ given $\mathcal{F}_{t-1}$ is given by:
+\begin{equation}
+    H_t(\boldsymbol{x} \mid \mathcal{F}_{t-1}) = C\left( F_{1}\left(\frac{x_1 - \mu_{t,1}}{\sigma_{t,1}}; \nu_1\right), \dots, F_{d}\left(\frac{x_d - \mu_{t,d}}{\sigma_{t,d}}; \nu_d\right) \;\middle|\; \mathcal{F}_{t-1}; \theta_t \right), \quad \boldsymbol{x} \in \mathbb{R}^d.
 \end{equation}
+Under $\mathcal{H}_0$, the parameter generating mechanism is structurally invariant ($\omega_t \equiv \omega_0$), allowing the CUSUM procedure to evaluate whether nominal empirical size is distorted by non-stationary marginal nuisance dynamics and score persistence. Under $\mathcal{H}_1$ and $\mathcal{H}_2$, the test assesses detection power against discontinuous and continuous shifts in the lower extremal dependence structure.
+
+\begin{figure}[!htbp]
+    \centering
+    \includegraphics[width=\textwidth]{img/sedcd_dgp.pdf}
+    \caption{\footnotesize Data generating process (DGP) for the Smoothed Extremal Downside Correlation Density (SEDCD) simulation design ($d = 2$, $n = 1{,}000$). Panel (a) illustrates observed return trajectories $X_{t,1}, X_{t,2}$ governed by $\text{ARMA}(1, 1)\text{--}\text{GJR-GARCH}(1, 1)$ nuisance dynamics with shaded $\pm 2\sigma_{t,1}$ volatility envelope. Panel (b) depicts joint conditionally uniform copula realizations $(U_{t,1}, U_{t,2}) \in [0, 1]^2$ under Clayton dependence, highlighting extreme co-movements in the joint downside quadrant $[0, 0.10]^2$. Panel (c) tracks lower tail dependence trajectories $\lambda_L(t)$ across the null hypothesis of structural stability ($\mathcal{H}_0$, gray), abrupt shift at $u^* = 0.5$ ($\mathcal{H}_1$, red), and gradual monotonic drift ($\mathcal{H}_2$, green). Panel (d) displays the latent $\text{GAS}(1, 1)$ unconstrained parameter path $\psi_t$, the stationary unconditional baseline shift $\bar{\psi}_t = \omega_t / (1 - \beta)$, and scaled score innovations $s_t$.}
+    \label{fig:sedcd_dgp}
+\end{figure}
 
 
 The practical implementation of our change-point framework requires specifying the local estimation bandwidth $k$. In this simulation we use $k$ that minimizes the system of equations on an unseen future observation at lag $L_n$. Formally, the optimal bandwidth is selected by solving:
